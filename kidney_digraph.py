@@ -12,31 +12,31 @@ import os
 class KidneyReadException(Exception):
     pass
 
-def cycle_score(cycle, digraph):
-    """Calculate the sum of a cycle's edge scores.
+def cycle_weight(cycle, digraph):
+    """Calculate the sum of a cycle's edge weights.
 
     Args:
         cycle: A list of Vertex objects in the cycle, with the first Vertex not repeated.
         digraph: The digraph in which this cycle appears.
     """
 
-    return sum(digraph.adj_mat[cycle[i-1].id][cycle[i].id].score
+    return sum(digraph.adj_mat[cycle[i-1].id][cycle[i].id].weight
                         for i in range(len(cycle)))
 
-def cycle_score_weighted(cycle, digraph):
-    """Calculate the sum of a cycle's edge scores.
+def cycle_weight_weighted(cycle, digraph):
+    """Calculate the sum of a cycle's edge weights.
 
     Args:
         cycle: A list of Vertex objects in the cycle, with the first Vertex not repeated.
         digraph: The digraph in which this cycle appears.
     """
 
-    return sum(digraph.adj_mat[cycle[i-1].id][cycle[i].id].score *(1.0 + digraph.adj_mat[cycle[i-1].id][cycle[i].id].alpha)
+    return sum(digraph.adj_mat[cycle[i-1].id][cycle[i].id].weight *(1.0 + digraph.adj_mat[cycle[i-1].id][cycle[i].id].alpha)
                         for i in range(len(cycle)))
 
 
-def failure_aware_cycle_score(cycle, digraph, edge_success_prob):
-    """Calculate a cycle's total score, with edge failures and no backarc recourse.
+def failure_aware_cycle_weight(cycle, digraph, edge_success_prob):
+    """Calculate a cycle's total weight, with edge failures and no backarc recourse.
 
     Args:
         cycle: A list of Vertex objects in the cycle, with the first Vertex not repeated.
@@ -45,11 +45,11 @@ def failure_aware_cycle_score(cycle, digraph, edge_success_prob):
         edge_success_prob: The problem that any given edge will NOT fail
     """
 
-    return sum(digraph.adj_mat[cycle[i-1].id][cycle[i].id].score
+    return sum(digraph.adj_mat[cycle[i-1].id][cycle[i].id].weight
                     for i in range(len(cycle))) * edge_success_prob**len(cycle)
 
-def failure_aware_cycle_score_weighted(cycle, digraph, edge_success_prob):
-    """Calculate a cycle's total score, with edge failures and no backarc recourse.
+def failure_aware_cycle_weight_weighted(cycle, digraph, edge_success_prob):
+    """Calculate a cycle's total weight, with edge failures and no backarc recourse.
 
     Args:
         cycle: A list of Vertex objects in the cycle, with the first Vertex not repeated.
@@ -57,7 +57,7 @@ def failure_aware_cycle_score_weighted(cycle, digraph, edge_success_prob):
         digraph: The digraph in which this cycle appears.
         edge_success_prob: The problem that any given edge will NOT fail
     """
-    return sum(digraph.adj_mat[cycle[i-1].id][cycle[i].id].score * (1.0 + digraph.adj_mat[cycle[i-1].id][cycle[i].id].alpha)
+    return sum(digraph.adj_mat[cycle[i-1].id][cycle[i].id].weight * (1.0 + digraph.adj_mat[cycle[i-1].id][cycle[i].id].alpha)
                     for i in range(len(cycle))) * edge_success_prob**len(cycle)
 
 
@@ -78,11 +78,11 @@ class Cycle:
     Contains:
     - list of vertices, in order
     - list of edges
-    - cycle score
+    - cycle weight
     """
     def __init__(self,vs):
         self.vs = vs
-        self.score = 0
+        self.weight = 0
         self.length = len(vs)
         self.discount_frac = 0
         self.edges = []
@@ -90,7 +90,7 @@ class Cycle:
     def to_dict(self):
         cy_dict = {'vs':[v.id for v in self.vs],
                    'discount_frac':self.discount_frac,
-                   'score':self.score}
+                   'weight':self.weight}
         return cy_dict
 
     def to_dict_dynamic(self):
@@ -98,14 +98,14 @@ class Cycle:
         for dynamic experiments, save different info
         '''
         cy_dict = {'vs':[v.to_dict_dynamic() for v in self.vs],
-                   'score':self.score}
+                   'weight':self.weight}
         return cy_dict
 
     @classmethod
     def from_dict(cls, cy_dict,digraph):
         cy = cls([digraph.vs[vi] for vi in cy_dict['vs']])
         cy.discount_frac = cy_dict['discount_frac']
-        cy.score = cy_dict['score']
+        cy.weight = cy_dict['weight']
         cy.add_edges(digraph.es)
         return cy
 
@@ -123,7 +123,7 @@ class Cycle:
 
     def display(self):
         vtx_str = " ".join(str(v) for v in self.vs)
-        return "L=%2d; %15s; score = %f; discount_frac = %f" % (self.length,vtx_str, self.score, self.discount_frac )
+        return "L=%2d; %15s; weight = %f; discount_frac = %f" % (self.length,vtx_str, self.weight, self.discount_frac )
 
     def contains_edge(self, e):
         if e.src in self.vs:
@@ -138,24 +138,24 @@ class Cycle:
         # create an unordered list of edges in the cycle
         self.edges = [e for e in es if self.contains_edge(e)]
     #
-    # def cycle_score(self, digraph):
-    #     """Calculate the sum of a cycle's edge scores.
+    # def cycle_weight(self, digraph):
+    #     """Calculate the sum of a cycle's edge weights.
     #
     #     Args:
     #         cycle: A list of Vertex objects in the cycle, with the first Vertex not repeated.
     #         digraph: The digraph in which this cycle appears.
     #     """
     #
-    #     return sum(digraph.adj_mat[cycle[i-1].id][cycle[i].id].score
+    #     return sum(digraph.adj_mat[cycle[i-1].id][cycle[i].id].weight
     #                         for i in range(len(cycle)))
 
 
 class Edge:
     """An edge in a directed graph (see the Digraph class)."""
 
-    def __init__(self, id, score, src, tgt, discount=0,fail=False, discount_frac=0):
+    def __init__(self, id, weight, src, tgt, discount=0,fail=False, discount_frac=0):
         self.id = id
-        self.score = score # edge weight
+        self.weight = weight # edge weight
         self.discount = discount # maximum discount value for the robust case
         self.discount_frac = discount_frac # amount of discount (between 0,1)
         self.fail = fail # whether edge failed
@@ -171,7 +171,7 @@ class Edge:
     def to_dict(self):
         e_dict = {'type':'pair_edge',
                   'id':self.id,
-                  'score':self.score,
+                  'weight':self.weight,
                   'discount':self.discount,
                   'discount_frac':self.discount_frac,
                   'src_id':self.src_id,
@@ -187,19 +187,19 @@ class Edge:
         return digraph.adj_mat[e_dict['src_id']][e_dict['tgt_id']]
         # src = digraph.vs[e_dict['src_id']]
         # tgt = digraph.vs[e_dict['tgt_id']]
-        # e = cls(e_dict['id'], e_dict['score'], src, tgt, discount=e_dict['discount'], discount_frac=e_dict['discount_frac'])
+        # e = cls(e_dict['id'], e_dict['weight'], src, tgt, discount=e_dict['discount'], discount_frac=e_dict['discount_frac'])
         # return e
 
 
-    def display(self,gamma):
+    def display(self, gamma):
         # if gamma == 0:
-        #     return "src=%d, tgt=%d, score=%f" % (self.src.id, self.tgt.id, self.score)
+        #     return "src=%d, tgt=%d, weight=%f" % (self.src.id, self.tgt.id, self.weight)
         # else:
-        return "src=%d, tgt=%d, score=%f, sens=%s, max_discount=%f, discount_frac=%f" % (
-        self.src.id, self.tgt.id, self.score, self.sensitized, self.discount, self.discount_frac)
+        return "src=%d, tgt=%d, weight=%f, sens=%s, max_discount=%f, discount_frac=%f" % (
+        self.src.id, self.tgt.id, self.weight, self.sensitized, self.discount, self.discount_frac)
 
 class Digraph:
-    """A directed graph, in which each edge has a numeric score.
+    """A directed graph, in which each edge has a numeric weight.
 
     Data members:
         n: the number of vertices in the digraph
@@ -238,17 +238,17 @@ class Digraph:
         self.es = []
         self.cycles = []
 
-    def add_edge(self, score, source, tgt):
+    def add_edge(self, weight, source, tgt):
         """Add an edge to the digraph
 
         Args:
-            score: the edge's score, as a float
+            weight: the edge's weight, as a float
             source: the source Vertex
             tgt: the edge's target Vertex
         """
 
         id = len(self.es)
-        e = Edge(id, score, source, tgt)
+        e = Edge(id, weight, source, tgt)
         self.es.append(e)
         source.edges.append(e)
         self.adj_mat[source.id][tgt.id] = e
@@ -433,7 +433,7 @@ class Digraph:
                 if e is not None:
                     new_src = subgraph.vs[i]
                     new_tgt = subgraph.vs[j]
-                    subgraph.add_edge(e.score, new_src, new_tgt)
+                    subgraph.add_edge(e.weight, new_src, new_tgt)
         return subgraph
 
     # read the *recipient.csv file to label the sensitized recipients
@@ -449,15 +449,15 @@ class Digraph:
     def augment_weights(self, beta):
         for e in self.es:
             if self.vs[e.tgt.id].sensitized:
-                new_score = (1.0 + beta) * e.score
-                e.score = new_score
+                new_weight = (1.0 + beta) * e.weight
+                e.weight = new_weight
 
     # inverse of augment_weights
     def unaugment_weights(self, beta):
         for e in self.es:
             if self.vs[e.tgt.id].sensitized:
-                new_score = e.score/(1.0 + beta)
-                e.score = new_score
+                new_weight = e.weight/(1.0 + beta)
+                e.weight = new_weight
 
     def get_num_sensitized(self):
         num = 0
@@ -483,8 +483,8 @@ class Digraph:
         d.vs = self.vs
         for e in self.es:
             tgt_v = e.tgt
-            new_score = e.score if include_vertex(tgt_v) else 0
-            d.add_edge(new_score, e.src, tgt_v)
+            new_weight = e.weight if include_vertex(tgt_v) else 0
+            d.add_edge(new_weight, e.src, tgt_v)
         return d
 
     def uniform_copy(self):
@@ -495,8 +495,8 @@ class Digraph:
         d.vs = self.vs
         for e in self.es:
             tgt_v = e.tgt
-            new_score = 1.0
-            d.add_edge(new_score, e.src, tgt_v)
+            new_weight = 1.0
+            d.add_edge(new_weight, e.src, tgt_v)
         return d
 
     def __str__(self):
@@ -519,46 +519,12 @@ def read_digraph(lines):
             raise KidneyReadException("Self-loop from {0} to {0} not permitted".format(src_id))
         if digraph.edge_exists(digraph.vs[src_id], digraph.vs[tgt_id]):
             raise KidneyReadException("Duplicate edge from {} to {}".format(src_id, tgt_id))
-        score = float(tokens[2])
+        weight = float(tokens[2])
             
-        digraph.add_edge(score, digraph.vs[src_id], digraph.vs[tgt_id])
+        digraph.add_edge(weight, digraph.vs[src_id], digraph.vs[tgt_id])
 
     if lines[edge_count+1].split()[0] != "-1" or len(lines) < edge_count+2:
         raise KidneyReadException("Incorrect edge count")
 
     return digraph
-
-# read a KPD graph from *edgeweights.csv file
-def read_from_kpd(edgeweights_filename):
-    col_names = ['match_run','patient_id', 'patient_pair_id', 'donor_id', 'donor_pair_id', 'weight']
-    df = pandas.read_csv(edgeweights_filename , names = col_names, skiprows=1)
-    nonzero_edges = df.loc[df['weight'] > 0 ]  # last column is edge weights -- only take nonzero edges
-    kpd_edges = nonzero_edges.loc[ ~nonzero_edges['donor_pair_id'].isnull()]# remove NDD edges
-    vtx_id = set(list(kpd_edges['patient_id'].unique()) + list(kpd_edges['donor_pair_id'].unique())) # get unique vertex ids
-
-    vtx_count = len(vtx_id)
-    digraph = Digraph(vtx_count)
-    vtx_index = dict(zip( vtx_id, range(len(vtx_id) ))) # vtx_index[id] gives the index in the digraph
-
-    warned = False
-    for index, row in kpd_edges.iterrows():
-        src_id = vtx_index[row['donor_pair_id']]
-        tgt_id = vtx_index[row['patient_id']]
-        score = row['weight']
-        if src_id < 0 or src_id >= vtx_count:
-            raise KidneyReadException("Vertex index {} out of range.".format(src_id))
-        if tgt_id < 0 or tgt_id >= vtx_count:
-            raise KidneyReadException("Vertex index {} out of range.".format(tgt_id))
-        if src_id == tgt_id:
-            raise KidneyReadException("Self-loop from {0} to {0} not permitted".format(src_id))
-        if digraph.edge_exists(digraph.vs[src_id], digraph.vs[tgt_id]) & ~warned:
-            print "# WARNING: Duplicate edge in file: {}".format(edgeweights_filename)
-            warned = True
-            # raise KidneyReadException("Duplicate edge from {} to {}".format(src_id, tgt_id))
-        if score == 0:
-            raise KidneyReadException("Zero-weight edge from {} to {}".format(src_id, tgt_id))
-
-        digraph.add_edge(score, digraph.vs[src_id], digraph.vs[tgt_id])
-
-    return digraph,vtx_index
 

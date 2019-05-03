@@ -161,12 +161,12 @@ def get_optimal_chains(digraph, ndds, edge_success_prob=1):
         for e in ndd.edges:
             if e.edge_var.x > 0.1:
                 vtx_indices = find_selected_path(e.tgt.id, chain_next_vv)
-                # Get score of edge from NDD
-                score = e.score * edge_success_prob
-                # Add scores of edges between vertices
+                # Get weight of edge from NDD
+                weight = e.weight * edge_success_prob
+                # Add weights of edges between vertices
                 for j in range(len(vtx_indices) - 1):
-                    score += digraph.adj_mat[vtx_indices[j]][vtx_indices[j + 1]].score * edge_success_prob ** (j + 2)
-                optimal_chains.append(kidney_ndds.Chain(i, vtx_indices, score))
+                    weight += digraph.adj_mat[vtx_indices[j]][vtx_indices[j + 1]].weight * edge_success_prob ** (j + 2)
+                optimal_chains.append(kidney_ndds.Chain(i, vtx_indices, weight))
 
     return optimal_chains
 
@@ -183,12 +183,12 @@ def get_optimal_chains_pctsp(digraph, ndds):
         for e in ndd.edges:
             if e.edge_var.x > 0.5:
                 vtx_indices = find_selected_path(e.tgt.id, chain_next_vv)
-                # Get score of edge from NDD
-                score = e.score * edge_success_prob
-                # Add scores of edges between vertices
+                # Get weight of edge from NDD
+                weight = e.weight * edge_success_prob
+                # Add weights of edges between vertices
                 for j in range(len(vtx_indices) - 1):
-                    score += digraph.adj_mat[vtx_indices[j]][vtx_indices[j + 1]].score * edge_success_prob ** (j + 2)
-                optimal_chains.append(kidney_ndds.Chain(i, vtx_indices, score))
+                    weight += digraph.adj_mat[vtx_indices[j]][vtx_indices[j + 1]].weight * edge_success_prob ** (j + 2)
+                optimal_chains.append(kidney_ndds.Chain(i, vtx_indices, weight))
 
     return optimal_chains
 
