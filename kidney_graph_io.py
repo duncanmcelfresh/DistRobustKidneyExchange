@@ -180,7 +180,6 @@ def read_CMU_format(details_filename, maxcard_filename,
     return digraph, ndd_list, name
 
 
-# TODO: TEST THIS GENERATOR. CURRENTLY UNTESTED
 def get_cmu_graphs(directory):
     # create a generator that produces kidney exchange graphs, given a directory containing "CMU" format exchange
     # graph files.

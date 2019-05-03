@@ -94,8 +94,7 @@ def robust_kex_experiment(args):
             for i_realization in range(num_weight_realizations):
 
                 # apply a realization to each edge
-                realize_edge_weights(digraph, ndd_list,
-                                     rs=None)
+                realize_edge_weights(digraph, ndd_list, rs=rs)
 
                 realized_nonrobust_score = sum([e.weight for e in sol_nonrobust.matching_edges])
                 realized_edge_weight_robust_score = sum([e.weight for e in sol_weight_robust.matching_edges])
@@ -197,7 +196,7 @@ def main():
                         default=3,
                         help='cycle cap')
     parser.add_argument('--protection-level',
-                        type=int,
+                        type=float,
                         default=0.1,
                         help='protection level (used only by edge-weight-robust')
     parser.add_argument('--graph-type',
@@ -217,7 +216,7 @@ def main():
     args = parser.parse_args()
 
     # UNCOMMENT FOR TESTING ARGPARSE / DEBUGGING
-    # arg_string = "--num-weight-measurements=5  --output-dir /Users/duncan/research/ --graph-type CMU --input-dir /Users/duncan/research/graphs/graphs_from_john/graphs_64"
+    # arg_string = "--num-weight-measurements=5  --protection-level 0.001 --output-dir /Users/duncan/research/ --graph-type CMU --input-dir /Users/duncan/research/graphs/graphs_from_john/graphs_64"
     # args = parser.parse_args(arg_string.split())
 
     robust_kex_experiment(args)
