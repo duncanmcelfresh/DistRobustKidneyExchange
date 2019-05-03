@@ -1292,7 +1292,7 @@ def solve_edge_weight_uncertainty(cfg, max_card=0):
     '''
 
     # define gamma (variable uncertainty budget) function
-    gamma_func = lambda x_norm: kidney_utils.gamma_symmetric_edge_weights(x_norm,cfg.protection_level)
+    gamma_func = lambda x_norm: kidney_utils.gamma_symmetric_edge_weights(x_norm, cfg.protection_level)
 
     if cfg.verbose:
         print "solving edge weight uncertainty "
@@ -2458,7 +2458,7 @@ def solve_edge_existence_uncertainty(cfg, max_num_cycles = 0):
     '''
 
     # define gamma (variable uncertainty budget) function
-    gamma_func = lambda n_cy,n_ch: kidney_utils.gamma_homogeneous_edge_failure(n_cy,n_ch,cfg.edge_failure_prob,cfg.max_cycle,cfg.protection_level)
+    gamma_func = lambda n_cy,n_ch: kidney_utils.gamma_homogeneous_edge_failure(n_cy, n_ch, cfg.edge_failure_prob, cfg.max_cycle, cfg.protection_level)
 
     if cfg.verbose:
         print "solving edge existence uncertainty"

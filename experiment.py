@@ -7,10 +7,8 @@ Fairness experiments, varying
 
 import os
 
-import kidney_digraph
 import kidney_ip
 import kidney_utils
-import kidney_ndds
 from read_CMU_format import read_CMU_format
 
 import glob
@@ -298,9 +296,9 @@ def find_edge_weight_matchings(matchings_dir, d, a, name,
                 type = 'wt'
                 wt_file = os.path.join(matchings_dir, build_filename(name, type, chain_cap, wt_string=wt_string, edge_success_prob=None, protection_level=p))
 
-                cfg_rob = kidney_ip.OptConfig(d, a, cycle_cap, chain_cap, verbose=(verbose>=2),
+                cfg_rob = kidney_ip.OptConfig(d, a, cycle_cap, chain_cap, verbose=(verbose >= 2),
                                               timelimit=timelimit, edge_success_prob=edge_success_prob,
-                                              protection_level=p,cycle_file=cycle_file, edge_assign_seed=edge_assign_seed)
+                                              protection_level=p, cycle_file=cycle_file, edge_assign_seed=edge_assign_seed)
 
                 if os.path.exists(wt_file):
                     if run_experiment:
@@ -403,8 +401,8 @@ def find_edge_existence_matchings(matchings_dir, d, a, name,
                 type = 'fa'
                 fa_file = os.path.join(matchings_dir,build_filename(name, type, chain_cap,edge_success_prob=par))
 
-                cfg_failaware = kidney_ip.OptConfig(d, a, cycle_cap, chain_cap, verbose=(verbose>=2),
-                                           timelimit=timelimit, edge_success_prob=par,cycle_file=cycle_file)
+                cfg_failaware = kidney_ip.OptConfig(d, a, cycle_cap, chain_cap, verbose=(verbose >= 2),
+                                                    timelimit=timelimit, edge_success_prob=par, cycle_file=cycle_file)
 
             if os.path.exists(fa_file):
                 if run_experiment:
@@ -531,7 +529,7 @@ def find_edge_existence_matchings_const_gamma(matchings_dir, d, a,
             nr_file = os.path.join(matchings_dir, build_filename(name, type, chain_cap))
 
             cfg = kidney_ip.OptConfig(d, a, cycle_cap, chain_cap, verbose=(verbose >= 2),
-                                      timelimit=timelimit, edge_success_prob=1,gamma=0)
+                                      timelimit=timelimit, edge_success_prob=1, gamma=0)
 
             if os.path.exists(nr_file):
                 if run_experiment:
