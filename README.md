@@ -1,6 +1,6 @@
 # Distributionally Robust Kidney Exchange
 
-Experiments testing various robust and non-robust kidney exchange matching algorithms.
+Experiments testing various robust and non-robust kidney exchange matching algorithms. Written for Python 2.7 and Gurobi 8+. Not guaranteed to work for Python 3 (but it should).
 
 Example usage:
 

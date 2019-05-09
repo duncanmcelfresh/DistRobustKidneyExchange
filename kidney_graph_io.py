@@ -52,7 +52,7 @@ def read_UNOS_graph(directory):
         if src_id == tgt_id:
             raise KidneyReadException("Self-loop from {0} to {0} not permitted".format(src_id))
         if digraph.edge_exists(digraph.vs[src_id], digraph.vs[tgt_id]) & ~warned:
-            print "# WARNING: Duplicate edge in file: {}".format(edge_filename)
+            print("# WARNING: Duplicate edge in file: {}".format(edge_filename))
             warned = True
         if weight == 0:
             raise KidneyReadException("Zero-weight edge from {} to {}".format(src_id, tgt_id))
@@ -96,7 +96,7 @@ def get_UNOS_graphs(directory):
     # files.
 
     # get all subdirectories that look like UNOS files (KPD_CSV_IO_...)
-    kpd_dirs = glob.glob(os.path.join(directory, 'KPD_CSV_IO*/'))
+    kpd_dirs = glob.glob(os.path.join(directory, 'KPD_CSV_IO*' + os.sep))
 
     for sub_directory in sorted(kpd_dirs):
 

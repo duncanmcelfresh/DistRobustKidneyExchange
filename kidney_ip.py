@@ -195,47 +195,36 @@ class OptSolution(object):
     def display(self):
         """Print the optimal cycles and chains to standard output."""
 
-        print "cycle_count: {}".format(len(self.cycles))
-        print "chain_count: {}".format(len(self.chains))
-        print "cycles:"
+        print("cycle_count: {}".format(len(self.cycles)))
+        print("chain_count: {}".format(len(self.chains)))
+        print("cycles:")
         # # cs is a list of cycles, with each cycle represented as a list of vertex IDs
         # # Sort the cycles
         if len(self.cycle_obj)>0:
             for c in sorted(self.cycle_obj):
-                print c.display()
+                print(c.display())
         else:
             cs = [[v.id for v in c] for c in self.cycles]
             # Put the lowest-indexed vertex at the start of each cycle
             for i in range(len(cs)):
                 min_index_pos = cs[i].index(min(cs[i]))
                 cs[i] = cs[i][min_index_pos:] + cs[i][:min_index_pos]
-                print "\t".join(str(v_id) for v_id in cs[i])
-        print "chains:"
+                print("\t".join(str(v_id) for v_id in cs[i]))
+        print("chains:")
         for c in self.chains:
-            print c.display()
+            print(c.display())
 
-        print "edges:"
+        print("edges:"())
         for e in sorted(self.matching_edges, key=lambda x: x.weight, reverse=True):
             print(e.display(self.gamma))
 
-        print "total weight:"
-        print self.total_weight
+        print("total weight:")
+        print(self.total_weight)
         if self.gamma > 0:
-            # print "gamma: {}".format(self.gamma)
-            # print "discounted pair edges ({}):".format(len(self.discounted_pair_edges))
-            # for e in self.discounted_pair_edges:
-            #     print "\t".join([str(e.src.id), str(e.tgt.id)]) + "\t" + "weight={}".format(e.weight) + "\t" + "discount={}".format(e.discount) + "\t" + "discount_frac={}".format(e.discount_frac)
-            # print "discounted NDD edges ({}):".format(len(self.discounted_ndd_edges))
-            # for n,e in self.discounted_ndd_edges:
-            #     print str(n) + "\t" + str(e.tgt.id) + "\t" + "weight={}".format(e.weight) + "\t" + "discount={}".format(e.discount) + "\t" + "discount_frac={}".format(e.discount_frac)
-            # ndd_d_sum = np.sum(e.discount*e.discount_frac for _,e in self.discounted_ndd_edges)
-            # pair_d_sum = np.sum(e.discount*e.discount_frac for e in self.discounted_pair_edges)
             d_sum = np.sum(e.discount * e.discount_frac for e in self.matching_edges)
-            print "total discount value = {}".format(d_sum)
-            print "robust matching weight: {}".format(self.robust_weight)
-            print "optimistic matching weight: {}".format(self.optimistic_weight)
-            # print "ratio of robust/optimistic: {}".format(self.robust_weight/self.optimistic_weight)
-            # print "difference between robust/optimistic: {}".format(self.optimistic_weight-self.robust_weight)
+            print("total discount value = {}".format(d_sum))
+            print("robust matching weight: {}".format(self.robust_weight))
+            print("optimistic matching weight: {}".format(self.optimistic_weight))
 
     # added by Duncan
     def vertex_mask(self):
@@ -473,7 +462,7 @@ def max_cycles(cfg):
 
     optimize(m)
     if cfg.verbose:
-        print "maximum number of cycles = %d" % m.objVal
+        print("maximum number of cycles = %d" % m.objVal)
     if m.objVal != int(m.objVal):
         raise Warning("number of cycles is not integer")
     return int(m.objVal)
@@ -720,7 +709,7 @@ def solve_edge_weight_uncertainty(cfg, max_card=None):
     gamma_func = lambda x_norm: kidney_utils.gamma_symmetric_edge_weights(x_norm, cfg.protection_level)
 
     if cfg.verbose:
-        print "solving edge weight uncertainty "
+        print("solving edge weight uncertainty ")
 
     if max_card is None:
         # find maximum-cardinality solution (max edge-count)
@@ -734,7 +723,7 @@ def solve_edge_weight_uncertainty(cfg, max_card=None):
         max_card = len(sol_maxcard.matching_edges)
 
     if cfg.verbose:
-        print "maximum cardinality = %d" % max_card
+        print("maximum cardinality = %d" % max_card)
 
     # now find all card-restricted solutions to the constant-budget robust problem,
     # and take the best one
@@ -759,7 +748,7 @@ def solve_edge_weight_uncertainty(cfg, max_card=None):
             new_sol = optimise_robust_picef(cfg)
 
         if cfg.verbose:
-            print "%d edges; gamma = %f; robust obj = %f" % (card_restriction, cfg.gamma, new_sol.robust_weight)
+            print("%d edges; gamma = %f; robust obj = %f" % (card_restriction, cfg.gamma, new_sol.robust_weight))
 
         if card_restriction == 1:
             best_sol = new_sol
