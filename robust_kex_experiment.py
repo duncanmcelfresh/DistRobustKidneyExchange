@@ -30,6 +30,9 @@ def robust_kex_experiment(args):
     chain_cap = args.chain_cap
     num_weight_measurements = args.num_weight_measurements
     num_weight_realizations = args.num_weight_realizations
+    alpha_list = args.alpha_list
+    theta = args.theta
+    num_trials = args.num_trials
 
     rs = np.random.RandomState(seed=seed)
 
@@ -38,12 +41,16 @@ def robust_kex_experiment(args):
 
     # list of output column names
     output_columns = ['graph_name',
+                        'trial_num',
+                        'alpha',
                         'realization_num',
                         'cycle_cap',
                         'chain_cap',
-                        'protection_level',
-                        'nonrobust_score',
-                        'edge_weight_robust_score']
+                        'protection_level_RO',
+                        'theta_DRO',
+                        'realized_nonrobust_score',
+                        'realized_RO_score',
+                        'realized_DRO_score']
 
     # output file header, and write experiment parameters to the first line
     with open(output_file, 'w') as f:
@@ -58,73 +65,102 @@ def robust_kex_experiment(args):
     # run the experiment for each graph
     for digraph, ndd_list, graph_name in graph_generator:
 
-        # simulate measurements of edge weight, to be used by each method
-        simulate_edge_measurements(digraph, ndd_list,
-                                   rs=rs,
-                                   num_weight_measurements=num_weight_measurements)
+        for i_trial in range(num_trials):
 
-        # method 1: solve the non-robust approach
-        # for this method we treat the *mean* of all measurements as the true edge weights
-        set_mean_edge_weight(digraph, ndd_list)
-        sol_nonrobust = optimize_picef(OptConfig(digraph, ndd_list, cycle_cap, chain_cap,
-                                                 verbose=verbose))
+            for alpha in alpha_list:
+                # initialize edge types, weight function, and edge_weight_list
+                initialize_edge_weights(digraph, ndd_list, num_weight_measurements, alpha,
+                                        rs=rs)
 
-        # method 2: solve the RO approach of McElfresh et al. (2018), assuming a symmetric edge weight distribution
-        # for this method, as with the non-robust method, we set the nominal value for each edge to be the mean of all
-        # measurements. we also set the discount value to be the difference between the mean and the *min* measurement.
-        # that is, we assume that we observe the minimum-possible edge weight in the measurements.
-        #
-        # we could improve this, by making a truthful assumption about the edge weight distribution.
-        set_mean_edge_weight(digraph, ndd_list)
-        set_discount_values(digraph, ndd_list)
-        sol_weight_robust = solve_edge_weight_uncertainty(OptConfig(digraph, ndd_list, cycle_cap, chain_cap,
-                                     verbose=verbose,
-                                     protection_level=protection_level))
+                # method 1: solve the non-robust approach
+                # for this method we treat the *mean* of all measurements as the true edge weights
+                set_mean_edge_weight(digraph, ndd_list)
+                sol_nonrobust = optimize_picef(OptConfig(digraph, ndd_list, cycle_cap, chain_cap,
+                                                         verbose=verbose))
+
+                # method 2: solve the RO approach of McElfresh et al. (2018), assuming a symmetric edge weight distribution
+                # for this method, as with the non-robust method, we set the nominal value for each edge to be the mean of all
+                # measurements. we also set the discount value to be the difference between the mean and the *min* measurement.
+                # that is, we assume that we observe the minimum-possible edge weight in the measurements.
+                #
+                # we could improve this, by making a truthful assumption about the edge weight distribution.
+                set_mean_edge_weight(digraph, ndd_list)
+                set_discount_values(digraph, ndd_list)
+                sol_RO = solve_edge_weight_uncertainty(OptConfig(digraph, ndd_list, cycle_cap, chain_cap,
+                                             verbose=verbose,
+                                             protection_level=protection_level))
+
+                # method 3: solve the DRO approach.
+                # TODO: set theta to the best value for these edge weights?
+                sol_DRO = kidney_ip.optimize_DROinf_picef(OptConfig(digraph, ndd_list, cycle_cap, chain_cap,
+                                                                            verbose=verbose), theta=theta)
+
+                if verbose:
+                    print("protection level epsilon = %f" % protection_level)
+                    print("non-robust solution:")
+                    print(sol_nonrobust.display())
+                    print("edge-weight robust solution:")
+                    print(sol_RO.display())
+                    print("distributionally-robust solution:")
+                    print(sol_DRO.display())
+
+                with open(output_file, 'a') as f:
+                    for i_realization in range(num_weight_realizations):
+
+                        # apply a realization to each edge
+                        realize_edge_weights(digraph, ndd_list, rs=rs)
+
+                        realized_nonrobust_score = sum([e.weight for e in sol_nonrobust.matching_edges])
+                        realized_RO_score = sum([e.weight for e in sol_RO.matching_edges])
+                        realized_DRO_score = sum([e.weight for e in sol_DRO.matching_edges])
+
+                        f.write((','.join(len(output_columns) * ['%15s ']) + '\n') %
+                            (graph_name,
+                            '%d' % i_trial,
+                            '%.3e' % alpha,
+                            '%d' % i_realization,
+                            '%d' % cycle_cap,
+                            '%d' % chain_cap,
+                            '%.3e' % protection_level,
+                            '%.3e' % theta,
+                            '%.4e' % realized_nonrobust_score,
+                            '%.4e' % realized_RO_score,
+                            '%.4e' % realized_DRO_score))
 
 
-        if verbose:
-            print("protection level epsilon = %f" % protection_level)
-            print("non-robust solution:")
-            print(sol_nonrobust.display())
-            print("edge-weight robust solution:")
-            print(sol_weight_robust.display())
-
-
-        with open(output_file, 'a') as f:
-            for i_realization in range(num_weight_realizations):
-
-                # apply a realization to each edge
-                realize_edge_weights(digraph, ndd_list, rs=rs)
-
-                realized_nonrobust_score = sum([e.weight for e in sol_nonrobust.matching_edges])
-                realized_edge_weight_robust_score = sum([e.weight for e in sol_weight_robust.matching_edges])
-
-                f.write((','.join(len(output_columns) * ['%15s ']) + '\n') %
-                    (graph_name,
-                    '%d' % i_realization,
-                    '%d' % cycle_cap,
-                    '%d' % chain_cap,
-                    '%.2e' % protection_level,
-                    '%.3e' % realized_nonrobust_score,
-                    '%.3e' % realized_edge_weight_robust_score))
-
-
-def simulate_edge_measurements(digraph, ndd_list,
-                                rs=None,
-                                num_weight_measurements=10):
-    # sample num_measurements measurements for each edge. put these in a list, and set it to the property
-    # edge.weight_list
+def initialize_edge_weights(digraph, ndd_list, num_weight_measurements, alpha,
+                                rs=None):
+    # initialize the "weight_type" of each edge, and the function draw_edge_weight
+    #
+    # set the following properties for each edge:
+    # - type : (int) the type of edge weight distribution
+    # - alpha : the fraction of edges that are random (type = 0 is deterministic)
+    # - draw_edge_weight : (function handle) take a random state and return an edge weight
+    # - edge_weight_list : a list of draws (measurements) from draw_edge_weight
     if rs is None:
         rs = np.random.RandomState(0)
 
-    # for this, use a simple weight distribution: random integer between 1 and 10.
-    generate_weight_list = lambda: rs.randint(1, 10, size=num_weight_measurements)
-
     for e in digraph.es:
-        e.weight_list = generate_weight_list()
+        initialize_edge(e, alpha, num_weight_measurements, rs=rs)
     for n in ndd_list:
         for e in n.edges:
-            e.weight_list = generate_weight_list()
+            initialize_edge(e, alpha, num_weight_measurements, rs=rs)
+
+
+def initialize_edge(e, alpha, num_weight_measurements,
+                    rs=None):
+    if rs is None:
+        rs = np.random.RandomState(0)
+
+    # set a type : with probability alpha, the edge is random
+    if rs.rand() < alpha:
+        e.type = 1
+    else:
+        # deterministic edge
+        e.type = 0
+
+    e.draw_edge_weight = lambda x: edge_weight_distribution(e.type, x)
+    e.weight_list = [e.draw_edge_weight(rs) for _ in range(num_weight_measurements)]
 
 
 def set_mean_edge_weight(digraph, ndd_list):
@@ -147,12 +183,6 @@ def set_discount_values(digraph, ndd_list):
             e.discount = np.mean(e.weight_list) - np.min(e.weight_list)
 
 
-def realized_weight_function(edge, rs=None):
-    # draw from a distribution of true edge weights, and it to e.weight
-    if rs is None:
-        rs = np.random.RandomState(0)
-
-    return rs.randint(1, 10)
 
 
 def realize_edge_weights(digraph, ndd_list, rs=None):
@@ -161,10 +191,48 @@ def realize_edge_weights(digraph, ndd_list, rs=None):
         rs = np.random.RandomState(0)
 
     for e in digraph.es:
-        e.weight = realized_weight_function(e, rs=rs)
+        e.weight = e.draw_edge_weight(rs)
     for n in ndd_list:
         for e in n.edges:
-            e.weight = realized_weight_function(e, rs=rs)
+            e.weight = e.draw_edge_weight(rs)
+
+
+# ---- edge weight distribution functions ----
+# each function should generate a random list of edge weights for some edge
+#
+# shared arguments:
+# - alpha \in [0,1] : the fraction of edges that are uncertain (1 - alpha)% of the edges are constant-weight
+# - num_measurements : the number of edge measurements to provide
+# all constant edges have
+
+def edge_weight_distribution(type, rs):
+    # return an edge weight for a certain type of distribution
+    #
+    # type:
+    # 0 : deterministic
+    # not 0 : 0 or 1, with prob. 0.5 each
+    if type == 0:
+        return 0.5
+    else:
+        return rs.choice([0.0, 1.0], p=[0.5, 0.5], size=1)[0]
+
+def edge_dist_binary(alpha, num_measurements,
+                     rs=None):
+    # return a list of constant edge weights (with prob. 1-alpha) or binary edge weights (with prob. alpha)
+    # constant edges have weight 0.5; binary edge weights have weight 0 or 1 (each with prob. 0.5)
+    #
+    # inputs:
+    # - alpha \in [0,1] : the fraction of edges that are uncertain (1 - alpha)% of the edges are constant-weight
+    # - num_measurements : the number of weight measurements to generate
+    # - rs : (optional) to seed all randomness
+    if rs is None:
+        rs = np.random.RandomState(0)
+
+    # generate random edge weights
+    if rs.rand() < alpha:
+        return rs.choice([0.0, 1.0], p=[0.5, 0.5], size=num_measurements)
+    else:
+        return np.array([0.5] * num_measurements)
 
 
 def main():
@@ -179,6 +247,15 @@ def main():
                         type=int,
                         help='random seed for experiments',
                         default=0)
+    parser.add_argument('--alpha-list',
+                        type=float,
+                        help='a list of alpha values : the fraction of edges that are random.',
+                        default=[0.5],
+                        nargs='+')
+    parser.add_argument('--num-trials',
+                        type=int,
+                        help='number of times to randomly assign edge distributions & measurements',
+                        default=1)
     parser.add_argument('--num-weight-realizations',
                         type=int,
                         help='number of times to randomly draw edge weights and calculate matching score',
@@ -199,6 +276,10 @@ def main():
                         type=float,
                         default=0.1,
                         help='protection level (used only by edge-weight-robust')
+    parser.add_argument('--theta',
+                        type=float,
+                        default=0.1,
+                        help='regularization (used only by DRO')
     parser.add_argument('--graph-type',
                         type=str,
                         default='CMU',
@@ -216,7 +297,7 @@ def main():
     args = parser.parse_args()
 
     # UNCOMMENT FOR TESTING ARGPARSE / DEBUGGING
-    # arg_string = "--num-weight-measurements=5  --protection-level 0.001 --output-dir /Users/duncan/research/ --graph-type CMU --input-dir /Users/duncan/research/graphs/graphs_from_john/graphs_64"
+    # arg_string = "--num-weight-measurements=10 --alpha-list 0.0 1.0 --protection-level 0.01 --output-dir /Users/duncan/research/DistRobustKex_output --graph-type CMU --input-dir /Users/duncan/research/example_graphs"
     # args = parser.parse_args(arg_string.split())
 
     robust_kex_experiment(args)

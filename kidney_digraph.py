@@ -61,6 +61,20 @@ def failure_aware_cycle_weight_weighted(cycle, digraph, edge_success_prob):
                     for i in range(len(cycle))) * edge_success_prob**len(cycle)
 
 
+def reg_failure_aware_cycle_weight(cycle, digraph, edge_success_prob, theta):
+    """Calculate a cycle's total weight, with edge failures and no backarc recourse.
+
+    Args:
+        cycle: A list of Vertex objects in the cycle, with the first Vertex not repeated.
+            UPDATE: cycle = a Cycle object
+        digraph: The digraph in which this cycle appears.
+        edge_success_prob: The problem that any given edge will NOT fail
+    """
+
+    return (sum(digraph.adj_mat[cycle[i-1].id][cycle[i].id].weight
+                    for i in range(len(cycle))) - theta * len(cycle)) * edge_success_prob ** len(cycle)
+
+
 class Vertex:
     """A vertex in a directed graph (see the Digraph class)."""
 

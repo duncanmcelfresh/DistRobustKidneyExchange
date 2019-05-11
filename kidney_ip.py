@@ -20,6 +20,8 @@ import random
 from guppy import hpy
 import json
 
+from kidney_digraph import reg_failure_aware_cycle_weight
+
 h = hpy()
 
 EPS = 1e-12
@@ -67,7 +69,7 @@ class OptConfig(object):
                  gamma=0,
                  cardinality_restriction=None,
                  protection_level=0.1,
-                 chain_restriction = None,
+                 chain_restriction=None,
                  cycle_restriction=None,
                  name=None):
         self.digraph = digraph
@@ -214,7 +216,7 @@ class OptSolution(object):
         for c in self.chains:
             print(c.display())
 
-        print("edges:"())
+        print("edges:")
         for e in sorted(self.matching_edges, key=lambda x: x.weight, reverse=True):
             print(e.display(self.gamma))
 
@@ -735,7 +737,7 @@ def solve_edge_weight_uncertainty(cfg, max_card=None):
         sol_maxcard.max_card = 0
         return sol_maxcard
 
-    for card_restriction in range(1,max_card+1):
+    for card_restriction in range(1, max_card+1):
 
         # solve the k-cardinality-restricted problem, with Gamma = gamma(k)
         cfg.cardinality_restriction = card_restriction
@@ -761,6 +763,81 @@ def solve_edge_weight_uncertainty(cfg, max_card=None):
     cfg.gamma = best_gamma
     best_sol.max_card = max_card
     return best_sol
+
+
+#####################################DRO###############################################################
+
+# Infty-ball
+
+######################################################################################################
+
+def optimize_DROinf_picef(cfg, theta=0.1):
+
+    m, cycles, cycle_vars, _ = create_picef_model(cfg)
+
+    # add cycle objects
+    cycle_list = []
+    for c, var in zip(cycles, cycle_vars):
+        c_obj = Cycle(c)
+        c_obj.add_edges(cfg.digraph.es)
+        c_obj.weight = failure_aware_cycle_weight(c_obj.vs, cfg.digraph, cfg.edge_success_prob)
+        c_obj.grb_var = var
+        cycle_list.append(c_obj)
+
+    if not cfg.use_chains:  # define the weights by including the regularization terms
+        obj_expr = quicksum(reg_failure_aware_cycle_weight(c, cfg.digraph, cfg.edge_success_prob, theta) * var
+                            for c, var in zip(cycles, cycle_vars))
+    elif cfg.edge_success_prob == 1:
+        obj_expr = (quicksum(
+            reg_failure_aware_cycle_weight(c, cfg.digraph, cfg.edge_success_prob, theta) * var for c, var in
+            zip(cycles, cycle_vars)) +
+                    quicksum((e.weight - theta) * e.edge_var for ndd in cfg.ndds for e in ndd.edges) +
+                    quicksum((e.weight - theta) * var for e in cfg.digraph.es for var in e.grb_vars))
+    else:
+        obj_expr = (quicksum(reg_failure_aware_cycle_weight(c, cfg.digraph, cfg.edge_success_prob, theta) * var
+                             for c, var in zip(cycles, cycle_vars)) +
+                    quicksum((e.weight - theta) * cfg.edge_success_prob * e.edge_var
+                             for ndd in cfg.ndds for e in ndd.edges) +
+                    quicksum((e.weight - theta) * cfg.edge_success_prob ** (pos + 1) * var
+                             for e in cfg.digraph.es for var, pos in zip(e.grb_vars, e.grb_var_positions)))
+    m.setObjective(obj_expr, GRB.MAXIMIZE)
+
+    optimize(m)
+
+    pair_edges = [e for e in cfg.digraph.es if e.used_var.x > 0.5]
+
+    if cfg.use_chains:
+        matching_chains = kidney_utils.get_optimal_chains(
+            cfg.digraph, cfg.ndds, cfg.edge_success_prob)
+        ndd_chain_edges = [e for ndd in cfg.ndds for e in ndd.edges if e.edge_var.x > 0.5]
+    else:
+        ndd_chain_edges = []
+        matching_chains = []
+
+    matching_edges = pair_edges + ndd_chain_edges
+
+    if cfg.cardinality_restriction is not None:
+        if len(matching_edges) > cfg.cardinality_restriction:
+            raise Warning("cardinality restriction is violated: restriction = %d edges, matching uses %d edges" % (
+            cfg.cardinality_restriction, len(matching_edges)))
+
+    cycles_used = [c for c, v in zip(cycles, cycle_vars) if v.x > 0.5]
+    cycle_obj = [c for c in cycle_list if c.grb_var.x > 0.5]
+
+    sol = OptSolution(ip_model=m,
+                      cycles=cycles_used,
+                      cycle_obj=cycle_obj,
+                      chains=matching_chains,
+                      digraph=cfg.digraph,
+                      edge_success_prob=cfg.edge_success_prob,
+                      chain_restriction=cfg.chain_restriction,
+                      cycle_restriction=cfg.cycle_restriction,
+                      cycle_cap=cfg.max_chain,
+                      chain_cap=cfg.max_cycle,
+                      cardinality_restriction=cfg.cardinality_restriction)
+    sol.add_matching_edges(cfg.ndds)
+    kidney_utils.check_validity(sol, cfg.digraph, cfg.ndds, cfg.max_cycle, cfg.max_chain)
+    return sol
 
 
 
