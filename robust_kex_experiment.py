@@ -13,7 +13,7 @@ import random
 
 from kidney_graph_io import get_UNOS_graphs, get_cmu_graphs
 from utils import generate_filepath
-from kidney_ip import OptConfig, solve_edge_weight_uncertainty, optimize_picef
+from kidney_ip import OptConfig, optimise_robust_picef, optimize_picef
 
 
 def robust_kex_experiment(args):
@@ -25,13 +25,14 @@ def robust_kex_experiment(args):
     input_dir = args.input_dir
     graph_type = args.graph_type
     verbose = args.verbose
-    protection_level = args.protection_level
     cycle_cap = args.cycle_cap
     chain_cap = args.chain_cap
     num_weight_measurements = args.num_weight_measurements
     num_weight_realizations = args.num_weight_realizations
     alpha_list = args.alpha_list
-    theta = args.theta
+    theta_list = args.theta_list
+    # protection_level = args.protection_level
+    gamma_list = args.gamma_list
     num_trials = args.num_trials
 
     rs = np.random.RandomState(seed=seed)
@@ -46,11 +47,10 @@ def robust_kex_experiment(args):
                         'realization_num',
                         'cycle_cap',
                         'chain_cap',
-                        'protection_level_RO',
-                        'theta_DRO',
-                        'realized_nonrobust_score',
-                        'realized_RO_score',
-                        'realized_DRO_score']
+                        'method',
+                        'parameter_name',
+                        'parameter_value',
+                        'realized_score']
 
     # output file header, and write experiment parameters to the first line
     with open(output_file, 'w') as f:
@@ -86,23 +86,27 @@ def robust_kex_experiment(args):
                 # we could improve this, by making a truthful assumption about the edge weight distribution.
                 set_mean_edge_weight(digraph, ndd_list)
                 set_discount_values(digraph, ndd_list)
-                sol_RO = solve_edge_weight_uncertainty(OptConfig(digraph, ndd_list, cycle_cap, chain_cap,
-                                             verbose=verbose,
-                                             protection_level=protection_level))
+                sol_RO_list = []
+                for gamma in gamma_list:
+                    sol_RO_list.append(optimise_robust_picef(OptConfig(digraph, ndd_list, cycle_cap, chain_cap,
+                                                 verbose=verbose,
+                                                 gamma=gamma)))
+
 
                 # method 3: solve the DRO approach.
-                # TODO: set theta to the best value for these edge weights?
-                sol_DRO = kidney_ip.optimize_DROinf_picef(OptConfig(digraph, ndd_list, cycle_cap, chain_cap,
-                                                                            verbose=verbose), theta=theta)
+                sol_DRO_list = []
+                for theta in theta_list:
+                    sol_DRO_list.append(kidney_ip.optimize_DROinf_picef(OptConfig(digraph, ndd_list, cycle_cap, chain_cap,
+                                                                verbose=verbose), theta=theta))
 
-                if verbose:
-                    print("protection level epsilon = %f" % protection_level)
-                    print("non-robust solution:")
-                    print(sol_nonrobust.display())
-                    print("edge-weight robust solution:")
-                    print(sol_RO.display())
-                    print("distributionally-robust solution:")
-                    print(sol_DRO.display())
+                # if verbose:
+                #     print("protection level epsilon = %f" % protection_level)
+                #     print("non-robust solution:")
+                #     print(sol_nonrobust.display())
+                #     print("edge-weight robust solution:")
+                #     print(sol_RO.display())
+                #     print("distributionally-robust solution:")
+                #     print(sol_DRO.display())
 
                 with open(output_file, 'a') as f:
                     for i_realization in range(num_weight_realizations):
@@ -111,22 +115,71 @@ def robust_kex_experiment(args):
                         realize_edge_weights(digraph, ndd_list, rs=rs)
 
                         realized_nonrobust_score = sum([e.weight for e in sol_nonrobust.matching_edges])
-                        realized_RO_score = sum([e.weight for e in sol_RO.matching_edges])
-                        realized_DRO_score = sum([e.weight for e in sol_DRO.matching_edges])
 
-                        f.write((','.join(len(output_columns) * ['%15s ']) + '\n') %
-                            (graph_name,
-                            '%d' % i_trial,
-                            '%.3e' % alpha,
-                            '%d' % i_realization,
-                            '%d' % cycle_cap,
-                            '%d' % chain_cap,
-                            '%.3e' % protection_level,
-                            '%.3e' % theta,
-                            '%.4e' % realized_nonrobust_score,
-                            '%.4e' % realized_RO_score,
-                            '%.4e' % realized_DRO_score))
+                        write_line(f,
+                                   graph_name,
+                                   i_trial,
+                                   alpha,
+                                   i_realization,
+                                   cycle_cap,
+                                   chain_cap,
+                                   'nonrobust',
+                                   'None',
+                                   0,
+                                   realized_nonrobust_score)
 
+                        for sol, gamma in zip(sol_RO_list, gamma_list):
+                            score = sum([e.weight for e in sol.matching_edges])
+                            write_line(f,
+                                       graph_name,
+                                       i_trial,
+                                       alpha,
+                                       i_realization,
+                                       cycle_cap,
+                                       chain_cap,
+                                       'RO',
+                                       'gamma',
+                                       gamma,
+                                       score)
+
+                        for sol, theta in zip(sol_DRO_list, theta_list):
+                            score = sum([e.weight for e in sol.matching_edges])
+                            write_line(f,
+                                       graph_name,
+                                       i_trial,
+                                       alpha,
+                                       i_realization,
+                                       cycle_cap,
+                                       chain_cap,
+                                       'DRO',
+                                       'theta',
+                                       theta,
+                                       score)
+
+
+def write_line(f,
+               graph_name,
+               i_trial,
+               alpha,
+               i_realization,
+               cycle_cap,
+               chain_cap,
+               method,
+               parameter_name,
+               parameter_value,
+               score):
+
+    f.write((','.join(10 * ['%15s ']) + '\n') %
+        (graph_name,
+        '%d' % i_trial,
+        '%.3e' % alpha,
+        '%d' % i_realization,
+        '%d' % cycle_cap,
+        '%d' % chain_cap,
+        method,
+        parameter_name,
+        '%.4e' % parameter_value,
+        '%.4e' % score))
 
 def initialize_edge_weights(digraph, ndd_list, num_weight_measurements, alpha,
                                 rs=None):
@@ -272,14 +325,16 @@ def main():
                         type=int,
                         default=3,
                         help='cycle cap')
-    parser.add_argument('--protection-level',
+    parser.add_argument('--gamma-list',
                         type=float,
-                        default=0.1,
-                        help='protection level (used only by edge-weight-robust')
-    parser.add_argument('--theta',
+                        default=[1],
+                        nargs="+",
+                        help='list of gamma values (used only by edge-weight-robust')
+    parser.add_argument('--theta-list',
                         type=float,
-                        default=0.1,
-                        help='regularization (used only by DRO')
+                        default=[0.1],
+                        nargs="+",
+                        help='list of theta values(used only by DRO')
     parser.add_argument('--graph-type',
                         type=str,
                         default='CMU',
@@ -297,7 +352,7 @@ def main():
     args = parser.parse_args()
 
     # UNCOMMENT FOR TESTING ARGPARSE / DEBUGGING
-    # arg_string = "--num-weight-measurements=10 --alpha-list 0.0 1.0 --protection-level 0.01 --output-dir /Users/duncan/research/DistRobustKex_output --graph-type CMU --input-dir /Users/duncan/research/example_graphs"
+    # arg_string = "--num-weight-measurements=10 --gamma-list 0 1 2 --theta-list 0.1 0.3 --alpha-list 0.0 1.0 --output-dir /Users/duncan/research/DistRobustKex_output --graph-type CMU --input-dir /Users/duncan/research/example_graphs"
     # args = parser.parse_args(arg_string.split())
 
     robust_kex_experiment(args)
