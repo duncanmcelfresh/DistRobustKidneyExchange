@@ -74,7 +74,7 @@ def robust_kex_experiment(args):
 
                 # method 1: solve the non-robust approach
                 # for this method we treat the *mean* of all measurements as the true edge weights
-                set_mean_edge_weight(digraph, ndd_list)
+                set_nominal_edge_weight(digraph, ndd_list)
                 sol_nonrobust = optimize_picef(OptConfig(digraph, ndd_list, cycle_cap, chain_cap,
                                                          verbose=verbose))
 
@@ -84,14 +84,12 @@ def robust_kex_experiment(args):
                 # that is, we assume that we observe the minimum-possible edge weight in the measurements.
                 #
                 # we could improve this, by making a truthful assumption about the edge weight distribution.
-                set_mean_edge_weight(digraph, ndd_list)
-                set_discount_values(digraph, ndd_list)
+                set_RO_weight_parameters(digraph, ndd_list)
                 sol_RO_list = []
                 for gamma in gamma_list:
                     sol_RO_list.append(optimise_robust_picef(OptConfig(digraph, ndd_list, cycle_cap, chain_cap,
                                                  verbose=verbose,
                                                  gamma=gamma)))
-
 
                 # method 3: solve the DRO approach.
                 sol_DRO_list = []
@@ -127,6 +125,23 @@ def robust_kex_experiment(args):
                                    'None',
                                    0,
                                    realized_nonrobust_score)
+
+                        # find the optimal matching, given true weights
+                        sol_opt = optimize_picef(OptConfig(digraph, ndd_list, cycle_cap, chain_cap,
+                                                                 verbose=verbose))
+                        realized_optimal_score = sum([e.weight for e in sol_opt.matching_edges])
+
+                        write_line(f,
+                                   graph_name,
+                                   i_trial,
+                                   alpha,
+                                   i_realization,
+                                   cycle_cap,
+                                   chain_cap,
+                                   'optimal',
+                                   'None',
+                                   0,
+                                   realized_optimal_score)
 
                         for sol, gamma in zip(sol_RO_list, gamma_list):
                             score = sum([e.weight for e in sol.matching_edges])
@@ -214,27 +229,29 @@ def initialize_edge(e, alpha, num_weight_measurements,
 
     e.draw_edge_weight = lambda x: edge_weight_distribution(e.type, x)
     e.weight_list = [e.draw_edge_weight(rs) for _ in range(num_weight_measurements)]
+    e.true_mean_weight = 0.5
 
 
-def set_mean_edge_weight(digraph, ndd_list):
+def set_nominal_edge_weight(digraph, ndd_list):
     # for each edge, set the property edge.weight to be the mean of edge.weight_list
     # this is used for the *nominal* (non-robust) approach
     for e in digraph.es:
-        e.weight = np.mean(e.weight_list)
+        e.weight = e.true_mean_weight
     for n in ndd_list:
         for e in n.edges:
-            e.weight = np.mean(e.weight_list)
+            e.weight = e.true_mean_weight
 
 
-def set_discount_values(digraph, ndd_list):
-    # for each edge, set the property edge.discount to be  mean(edge.weight_list) - min(edge.weight_list)
-    # this is used for the edge-weight robust approach (McElfresh et al. 2018)
+def set_RO_weight_parameters(digraph, ndd_list):
+    # for each edge, set e.weight =( max(e.weight_list) - min(e.weight_list)) / 2
+    # set discount = weight - min(e.weight_list)
     for e in digraph.es:
-        e.discount = np.mean(e.weight_list) - np.min(e.weight_list)
+        e.weight = np.max(e.weight_list) - np.min(e.weight_list)
+        e.discount = e.weight - np.min(e.weight_list)
     for n in ndd_list:
         for e in n.edges:
-            e.discount = np.mean(e.weight_list) - np.min(e.weight_list)
-
+            e.weight = np.max(e.weight_list) - np.min(e.weight_list)
+            e.discount = e.weight - np.min(e.weight_list)
 
 
 
@@ -349,11 +366,11 @@ def main():
                         default=None,
                         help='output directory, where an output csv will be written')
 
-    args = parser.parse_args()
+    # args = parser.parse_args()
 
     # UNCOMMENT FOR TESTING ARGPARSE / DEBUGGING
-    # arg_string = "--num-weight-measurements=10 --gamma-list 0 1 2 --theta-list 0.1 0.3 --alpha-list 0.0 1.0 --output-dir /Users/duncan/research/DistRobustKex_output --graph-type CMU --input-dir /Users/duncan/research/example_graphs"
-    # args = parser.parse_args(arg_string.split())
+    arg_string = "--num-weight-measurements=10 --gamma-list 0 1 2 --theta-list 0.01 0.1 0.3 --alpha-list 0.75 --output-dir /Users/duncan/research/DistRobustKex_output --graph-type CMU --input-dir /Users/duncan/research/example_graphs"
+    args = parser.parse_args(arg_string.split())
 
     robust_kex_experiment(args)
 
