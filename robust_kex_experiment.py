@@ -446,11 +446,11 @@ def main():
                         default=None,
                         help='output directory, where an output csv will be written')
 
-    # args = parser.parse_args()
+    args = parser.parse_args()
 
     # UNCOMMENT FOR TESTING ARGPARSE / DEBUGGING
-    arg_string = "--num-weight-measurements=3 --gamma-list 0 1 2 --theta-list 0.1 10 100 500 600 --alpha-list 0.75 --output-dir /Users/duncan/research/DistRobustKex_output --graph-type CMU --input-dir /Users/duncan/research/example_graphs"
-    args = parser.parse_args(arg_string.split())
+    # arg_string = "--num-weight-measurements=3 --gamma-list 0 1 2 --theta-list 0.1 10 100 500 600 --alpha-list 0.75 --output-dir /Users/duncan/research/DistRobustKex_output --graph-type CMU --input-dir /Users/duncan/research/example_graphs"
+    # args = parser.parse_args(arg_string.split())
 
     robust_kex_experiment(args)
 
