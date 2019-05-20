@@ -34,6 +34,7 @@ def robust_kex_experiment(args):
     # protection_level = args.protection_level
     gamma_list = args.gamma_list
     num_trials = args.num_trials
+    dist_type = args.dist_type
 
     rs = np.random.RandomState(seed=seed)
 
@@ -70,7 +71,8 @@ def robust_kex_experiment(args):
             for alpha in alpha_list:
                 # initialize edge types, weight function, and edge_weight_list
                 initialize_edge_weights(digraph, ndd_list, num_weight_measurements, alpha,
-                                        rs=rs)
+                                        rs=rs,
+                                        dist_type=dist_type)
 
                 # method 1: solve the non-robust approach
                 # for this method we treat the *mean* of all measurements as the true edge weights
@@ -197,7 +199,8 @@ def write_line(f,
         '%.4e' % score))
 
 def initialize_edge_weights(digraph, ndd_list, num_weight_measurements, alpha,
-                                rs=None):
+                                rs=None,
+                                dist_type='binary'):
     # initialize the "weight_type" of each edge, and the function draw_edge_weight
     #
     # set the following properties for each edge:
@@ -205,8 +208,16 @@ def initialize_edge_weights(digraph, ndd_list, num_weight_measurements, alpha,
     # - alpha : the fraction of edges that are random (type = 0 is deterministic)
     # - draw_edge_weight : (function handle) take a random state and return an edge weight
     # - edge_weight_list : a list of draws (measurements) from draw_edge_weight
+    # - dist_type : the type of edge weight distribution ('binary' or 'unos')
     if rs is None:
         rs = np.random.RandomState(0)
+
+    if dist_type == 'binary':
+        initialize_edge = initialize_edge_binary
+    elif dist_type == 'unos':
+        initialize_edge = initialize_edge_unos
+    else:
+        raise Warning("edge distribution type not recognized")
 
     for e in digraph.es:
         initialize_edge(e, alpha, num_weight_measurements, rs=rs)
@@ -215,7 +226,7 @@ def initialize_edge_weights(digraph, ndd_list, num_weight_measurements, alpha,
             initialize_edge(e, alpha, num_weight_measurements, rs=rs)
 
 
-def initialize_edge(e, alpha, num_weight_measurements,
+def initialize_edge_binary(e, alpha, num_weight_measurements,
                     rs=None):
     if rs is None:
         rs = np.random.RandomState(0)
@@ -227,9 +238,63 @@ def initialize_edge(e, alpha, num_weight_measurements,
         # deterministic edge
         e.type = 0
 
-    e.draw_edge_weight = lambda x: edge_weight_distribution(e.type, x)
+    e.draw_edge_weight = lambda x: edge_weight_distribution_binary(e.type, x)
     e.weight_list = [e.draw_edge_weight(rs) for _ in range(num_weight_measurements)]
     e.true_mean_weight = 0.5
+
+
+def initialize_edge_unos(e, alpha, num_weight_measurements,
+                    rs=None):
+    if rs is None:
+        rs = np.random.RandomState(0)
+
+    # probabilities of meeting each criteria
+    p_list = [1.0, # base points (100)
+              0.005, # exact tissue type match (200)
+              0.12, # highly sensitized (125)
+              0.5, # at least one antibody mismatch (-5)
+              0.01, # patient is <18 (100)
+              0.001, # prior organ donor (150)
+              0.5] # geographic proximity (0, 25, 50, 75)]
+
+    # weights for each criteria
+    w_list = [100, # base points (100)
+              200, # exact tissue type match (200)
+              125, # highly sensitized (125)
+              -5, # at least one antibody mismatch (-5)
+              100, # patient is <18 (100)
+              150, # prior organ donor (150)
+              75] # geographic proximity
+
+    # max edge weight is 750
+
+    # set a type : with probability alpha, the edge is random
+    if rs.rand() < alpha:
+        # probabilistic edge
+        e.type = 1
+
+        # for each criteria, draw an initial value; this will be equal to the deterministic edge weight
+        _, b_realized = sample_edge_weight_distribution_unos(rs, w_list, p_list)
+
+        # fix the bernoulli variables for the last three criteria (these should be certain)
+        p_list_fixed = np.copy(p_list)
+        p_list_fixed[4] = b_realized[4]
+        p_list_fixed[5] = b_realized[5]
+        p_list_fixed[6] = b_realized[6]
+
+        e.draw_edge_weight = lambda x: sample_edge_weight_distribution_unos(rs, w_list, p_list_fixed)[0]
+        e.weight_list = [e.draw_edge_weight(rs) for _ in range(num_weight_measurements)]
+        e.true_mean_weight = np.dot(p_list_fixed, w_list)
+
+    else:
+        # deterministic edge
+        e.type = 0
+
+        # for each criteria, draw an initial value; this will be equal to the deterministic edge weight
+        fixed_weight, _ = sample_edge_weight_distribution_unos(rs, w_list, p_list)
+        e.draw_edge_weight = lambda x: fixed_weight
+        e.weight_list = [fixed_weight] * num_weight_measurements
+        e.true_mean_weight = fixed_weight
 
 
 def set_nominal_edge_weight(digraph, ndd_list):
@@ -275,7 +340,7 @@ def realize_edge_weights(digraph, ndd_list, rs=None):
 # - num_measurements : the number of edge measurements to provide
 # all constant edges have
 
-def edge_weight_distribution(type, rs):
+def edge_weight_distribution_binary(type, rs):
     # return an edge weight for a certain type of distribution
     #
     # type:
@@ -286,23 +351,33 @@ def edge_weight_distribution(type, rs):
     else:
         return rs.choice([0.0, 1.0], p=[0.5, 0.5], size=1)[0]
 
-def edge_dist_binary(alpha, num_measurements,
-                     rs=None):
-    # return a list of constant edge weights (with prob. 1-alpha) or binary edge weights (with prob. alpha)
-    # constant edges have weight 0.5; binary edge weights have weight 0 or 1 (each with prob. 0.5)
+def sample_edge_weight_distribution_unos(rs, w_list, p_list):
+    # return an edge weight for a unos-inspired distribution
     #
-    # inputs:
-    # - alpha \in [0,1] : the fraction of edges that are uncertain (1 - alpha)% of the edges are constant-weight
-    # - num_measurements : the number of weight measurements to generate
-    # - rs : (optional) to seed all randomness
-    if rs is None:
-        rs = np.random.RandomState(0)
+    # total edge distribution is:
+    # w_e ~ \sum_c p_{c} w_c
+    #
+    # each p_{c} is a bernoulli r.v.
+    b_realized = (rs.rand(len(p_list)) <= p_list).astype(int)
+    return np.dot(w_list, b_realized), b_realized
 
-    # generate random edge weights
-    if rs.rand() < alpha:
-        return rs.choice([0.0, 1.0], p=[0.5, 0.5], size=num_measurements)
-    else:
-        return np.array([0.5] * num_measurements)
+# def edge_dist_binary(alpha, num_measurements,
+#                      rs=None):
+#     # return a list of constant edge weights (with prob. 1-alpha) or binary edge weights (with prob. alpha)
+#     # constant edges have weight 0.5; binary edge weights have weight 0 or 1 (each with prob. 0.5)
+#     #
+#     # inputs:
+#     # - alpha \in [0,1] : the fraction of edges that are uncertain (1 - alpha)% of the edges are constant-weight
+#     # - num_measurements : the number of weight measurements to generate
+#     # - rs : (optional) to seed all randomness
+#     if rs is None:
+#         rs = np.random.RandomState(0)
+#
+#     # generate random edge weights
+#     if rs.rand() < alpha:
+#         return rs.choice([0.0, 1.0], p=[0.5, 0.5], size=num_measurements)
+#     else:
+#         return np.array([0.5] * num_measurements)
 
 
 def main():
@@ -357,6 +432,11 @@ def main():
                         default='CMU',
                         choices=['CMU', 'UNOS'],
                         help='type of exchange graphs: CMU format or UNOS format')
+    parser.add_argument('--dist-type',
+                        type=str,
+                        default='unos',
+                        choices=['unos', 'binary'],
+                        help='type of edge weight distribution: unos or binary')
     parser.add_argument('--input-dir',
                         type=str,
                         default=None,
@@ -366,11 +446,11 @@ def main():
                         default=None,
                         help='output directory, where an output csv will be written')
 
-    args = parser.parse_args()
+    # args = parser.parse_args()
 
     # UNCOMMENT FOR TESTING ARGPARSE / DEBUGGING
-    # arg_string = "--num-weight-measurements=10 --gamma-list 0 1 2 --theta-list 0.01 0.1 0.3 --alpha-list 0.75 --output-dir /Users/duncan/research/DistRobustKex_output --graph-type CMU --input-dir /Users/duncan/research/example_graphs"
-    # args = parser.parse_args(arg_string.split())
+    arg_string = "--num-weight-measurements=3 --gamma-list 0 1 2 --theta-list 0.1 10 100 500 600 --alpha-list 0.75 --output-dir /Users/duncan/research/DistRobustKex_output --graph-type CMU --input-dir /Users/duncan/research/example_graphs"
+    args = parser.parse_args(arg_string.split())
 
     robust_kex_experiment(args)
 
