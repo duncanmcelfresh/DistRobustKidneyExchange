@@ -131,7 +131,7 @@ def robust_kex_experiment(args):
                                    'nonrobust_truemean',
                                    'None',
                                    0,
-                                   realized_nonrobust_score)
+                                   realized_nonrobust_truemean_score)
 
                         realized_nonrobust_samplemean_score = sum([e.weight for e in sol_nonrobust_samplemean.matching_edges])
 
