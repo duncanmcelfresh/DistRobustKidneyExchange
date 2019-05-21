@@ -5,7 +5,8 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 
 # output_file = '/Users/duncan/research/DistRobustKex_output/robust_kex_experiment_20190519_182539.csv'
-output_file = '/Users/duncan/research/DistRobustKex_output/robust_kex_experiment_20190520_195155.csv'
+# output_file = '/Users/duncan/research/DistRobustKex_output/robust_kex_experiment_20190520_195155.csv'
+output_file = '/Users/duncan/research/DistRobustKex_output/tmp.csv'
 
 df = pd.read_csv(output_file, skiprows=1)
 
@@ -54,48 +55,70 @@ assert df_clean[df_clean['method'] == 'optimal']['relative_opt_gap'].unique()[0]
 
 df_plot = df_clean[df_clean['alpha'] == 0.9]
 
-fig, axs = plt.subplots(1, 4, figsize=(9, 3), sharey=True)
+fig, axs = plt.subplots(1, 5, figsize=(9, 3), sharey=True)
 
 # plot optimal values
 df_method = df_plot[df_plot['method'] == 'optimal']
+ax = axs[0]
 g = sns.catplot(x="parameter_value",
                 y="relative_opt_gap",
-                ax=axs[0],
+                ax=ax,
                 data=df_method,
                 kind="box",
                 sharex=False,
                 height=3) #, aspect=.7)
+ax.set_title('OPT')
 
-df_method = df_plot[df_plot['method'] == 'nonrobust']
+df_method = df_plot[df_plot['method'] == 'nonrobust_truemean']
+ax = axs[1]
 g = sns.catplot(x="parameter_value",
                 y="relative_opt_gap",
-                ax=axs[1],
+                ax=ax,
                 data=df_method,
                 kind="box",
                 sharex=False,
                 height=3) #, aspect=.7)
+ax.set_title('NR-truemean')
+
+df_method = df_plot[df_plot['method'] == 'nonrobust_samplemean']
+ax = axs[2]
+g = sns.catplot(x="parameter_value",
+                y="relative_opt_gap",
+                ax=ax,
+                data=df_method,
+                kind="box",
+                sharex=False,
+                height=3) #, aspect=.7)
+ax.set_title('NR-samplemean')
+
 
 df_method = df_plot[df_plot['method'] == 'RO']
+ax = axs[3]
 g = sns.catplot(x="parameter_value",
                 y="relative_opt_gap",
-                ax=axs[2],
+                ax=ax,
                 data=df_method,
                 kind="box",
                 sharex=False,
                 height=3) #, aspect=.7)
+ax.set_title('RO')
+ax.set_xlabel('\Gamma')
+
 
 df_method = df_plot[df_plot['method'] == 'DRO']
+ax = axs[4]
 g = sns.catplot(x="parameter_value",
                 y="relative_opt_gap",
-                ax=axs[3],
+                ax=ax,
                 data=df_method,
                 kind="box",
                 sharex=False,
                 height=3) #, aspect=.7)
+ax.set_title('DRO')
+ax.set_xlabel('\theta')
 
 
-
-
+plt.close('all')
 
 
 # df_plot = df_clean[df_clean['num_items'].isin(num_items_list) & df_clean['method'].isin(display_methods)]

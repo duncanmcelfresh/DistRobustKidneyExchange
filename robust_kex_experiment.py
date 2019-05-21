@@ -100,6 +100,7 @@ def robust_kex_experiment(args):
 
                 # method 3: solve the DRO approach.
                 sol_DRO_list = []
+                set_sample_mean_edge_weight(digraph, ndd_list)
                 for theta in theta_list:
                     sol_DRO_list.append(kidney_ip.optimize_DROinf_picef(OptConfig(digraph, ndd_list, cycle_cap, chain_cap,
                                                                 verbose=verbose), theta=theta))
@@ -337,14 +338,14 @@ def set_sample_mean_edge_weight(digraph, ndd_list):
 
 
 def set_RO_weight_parameters(digraph, ndd_list):
-    # for each edge, set e.weight =( max(e.weight_list) - min(e.weight_list)) / 2
+    # for each edge, set e.weight =( max(e.weight_list) + min(e.weight_list)) / 2
     # set discount = weight - min(e.weight_list)
     for e in digraph.es:
-        e.weight = np.max(e.weight_list) - np.min(e.weight_list)
+        e.weight = (np.max(e.weight_list) + np.min(e.weight_list))/2
         e.discount = e.weight - np.min(e.weight_list)
     for n in ndd_list:
         for e in n.edges:
-            e.weight = np.max(e.weight_list) - np.min(e.weight_list)
+            e.weight = (np.max(e.weight_list) + np.min(e.weight_list)) / 2
             e.discount = e.weight - np.min(e.weight_list)
 
 
@@ -478,7 +479,7 @@ def main():
     args = parser.parse_args()
 
     # UNCOMMENT FOR TESTING ARGPARSE / DEBUGGING
-    # arg_string = "--num-weight-measurements=3 --gamma-list 0 1 5 10 15 --theta-list 0.1 10 100 500 600 --alpha-list 0.9 --output-dir /Users/duncan/research/DistRobustKex_output --graph-type CMU --input-dir /Users/duncan/research/example_graphs"
+    # arg_string = "--num-weight-measurements=3 --gamma-list 0 1 5 10 15 --theta-list 0.1 10 100 500 600 --alpha-list 0.9 --output-dir /Users/duncan/research/DistRobustKex_output/debug --graph-type CMU --input-dir /Users/duncan/research/example_graphs"
     # args = parser.parse_args(arg_string.split())
 
     robust_kex_experiment(args)

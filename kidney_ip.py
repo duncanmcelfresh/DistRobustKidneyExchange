@@ -590,10 +590,10 @@ def optimise_robust_picef(cfg):
     # gamma is not integer
     else:
         h_var = m.addVar(vtype=GRB.BINARY)
-        m.addConstr( cfg.gamma - num_edges_var <= W_small*h_var )
-        m.addConstr( num_edges_var - cfg.gamma <= W_small*(1-h_var) )
-        m.addConstr( quicksum(e.dp_var for e in all_edges) == h_var * num_edges_var + (1-h_var)*ceil_gamma )
-        m.addConstr( quicksum(e.df_var for e in all_edges) == h_var * num_edges_var + (1-h_var)*floor_gamma )
+        m.addConstr(cfg.gamma - num_edges_var <= W_small*h_var )
+        m.addConstr(num_edges_var - cfg.gamma <= W_small*(1-h_var) )
+        m.addConstr(quicksum(e.dp_var for e in all_edges) == h_var * num_edges_var + (1-h_var)*ceil_gamma )
+        m.addConstr(quicksum(e.df_var for e in all_edges) == h_var * num_edges_var + (1-h_var)*floor_gamma )
 
     # total discount (by edge)
     # gamma is integer
@@ -602,8 +602,8 @@ def optimise_robust_picef(cfg):
 
     # gamma is not integer
     else:
-        total_discount = quicksum( ( 1 - gamma_frac ) * e.discount * e.df_var for e in all_edges) + \
-                        quicksum( gamma_frac * e.discount * e.dp_var for e in all_edges)
+        total_discount = quicksum((1 - gamma_frac) * e.discount * e.df_var for e in all_edges) + \
+                        quicksum(gamma_frac * e.discount * e.dp_var for e in all_edges)
 
     # set a variable for the total (optimistic matching weight)
     total_weight = m.addVar(vtype=GRB.CONTINUOUS)
@@ -634,7 +634,7 @@ def optimise_robust_picef(cfg):
 
 
     if gamma_frac == 0: # gamma is integer
-        discounted_pair_edges = [ e for e in cfg.digraph.es if e.d_var.x > 0]
+        discounted_pair_edges = [e for e in cfg.digraph.es if e.d_var.x > 0]
 
         for e in discounted_pair_edges:
             e.discount_frac = e.d_var.x
@@ -653,18 +653,18 @@ def optimise_robust_picef(cfg):
             e.discount_frac = (1-gamma_frac) * e.df_var.x + gamma_frac * e.dp_var.x
 
         if cfg.use_chains:
-            discounted_ndd_edges = [(i_ndd, e) for i_ndd, ndd in enumerate(cfg.ndds) for e in ndd.edges \
+            discounted_ndd_edges = [(i_ndd, e) for i_ndd, ndd in enumerate(cfg.ndds) for e in ndd.edges\
                                     if ((e.df_var.x > 0.0) or (e.dp_var.x > 0.0))]
             for _, e in discounted_ndd_edges:
                 e.discount_frac = (1-gamma_frac) * e.df_var.x  + gamma_frac * e.dp_var.x
 
 
     if cfg.use_chains:
-        ndd_matching_edges = [e for ndd in cfg.ndds for e in ndd.edges if e.edge_var.x > 0.5 ]
+        ndd_matching_edges = [e for ndd in cfg.ndds for e in ndd.edges if e.edge_var.x > 0.5]
     else:
         ndd_matching_edges = []
 
-    used_matching_edges = [ e for e in cfg.digraph.es if e.used_var.x > 0.5]
+    used_matching_edges = [e for e in cfg.digraph.es if e.used_var.x > 0.5]
 
     matching_edges = ndd_matching_edges + used_matching_edges
 

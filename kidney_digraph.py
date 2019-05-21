@@ -182,6 +182,9 @@ class Edge:
     def __str__(self):
         return ("V" + str(self.src.id) + "-V" + str(self.tgt.id))
 
+    def __eq__(self, other):
+        return (self.tgt_id == other.tgt_id) and (self.src_id == other.src_id)
+
     def to_dict(self):
         e_dict = {'type':'pair_edge',
                   'id':self.id,

@@ -68,6 +68,9 @@ class NddEdge:
     def __str__(self):
         return("NDD edge to V{}".format(self.tgt.id))
 
+    def __eq__(self, other):
+        return (self.tgt_id == other.tgt_id) and (self.src_id == other.src_id)
+
     def to_dict(self):
         e_dict = {'type':'ndd_edge',
                   'weight':self.weight,
@@ -95,7 +98,7 @@ class NddEdge:
         raise Warning("NddEdge not found")
 
 
-    def display(self,gamma):
+    def display(self):
         # if gamma == 0:
         #     return "NDD Edge: tgt=%d, weight=%f" % ( self.tgt.id, self.weight)
         # else:
