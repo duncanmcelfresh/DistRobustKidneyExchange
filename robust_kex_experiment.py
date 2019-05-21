@@ -236,14 +236,36 @@ def initialize_edge_weights(digraph, ndd_list, num_weight_measurements, alpha,
         initialize_edge = initialize_edge_binary
     elif dist_type == 'unos':
         initialize_edge = initialize_edge_unos
+    elif dist_type == 'dro':
+        initialize_edge = initialize_edge_dro
+        # select alpha edges to be probabilistic (high expectation) and |E| - alpha to be deterministic (10)
+        num_edges = len(digraph.es) + sum([len(n.edges) for n in ndd_list])
+        # choose alpha edges to be probabilistic
+        prob_edges = rs.choice(num_edges, int(alpha), replace=False)
     else:
         raise Warning("edge distribution type not recognized")
 
-    for e in digraph.es:
-        initialize_edge(e, alpha, num_weight_measurements, rs=rs)
-    for n in ndd_list:
-        for e in n.edges:
+    if dist_type == 'dro':
+        edge_num = 0
+        for e in digraph.es:
+            if edge_num in prob_edges:
+                initialize_edge_dro(e, 1, num_weight_measurements, rs=rs)
+            else:
+                initialize_edge_dro(e, 0, num_weight_measurements, rs=rs)
+            edge_num += 1
+        for n in ndd_list:
+            for e in n.edges:
+                if edge_num in prob_edges:
+                    initialize_edge_dro(e, 1, num_weight_measurements, rs=rs)
+                else:
+                    initialize_edge_dro(e, 0, num_weight_measurements, rs=rs)
+                edge_num += 1
+    else:
+        for e in digraph.es:
             initialize_edge(e, alpha, num_weight_measurements, rs=rs)
+        for n in ndd_list:
+            for e in n.edges:
+                initialize_edge(e, alpha, num_weight_measurements, rs=rs)
 
 
 def initialize_edge_binary(e, alpha, num_weight_measurements,
@@ -270,15 +292,15 @@ def initialize_edge_unos(e, alpha, num_weight_measurements,
 
     # probabilities of meeting each criteria
     p_list = [1.0, # base points (100)
-              0.005, # exact tissue type match (200)
-              0.12, # highly sensitized (125)
+              0.3, # exact tissue type match (200)
+              0.6, # highly sensitized (125)
               0.5, # at least one antibody mismatch (-5)
               0.01, # patient is <18 (100)
               0.001, # prior organ donor (150)
               0.5] # geographic proximity (0, 25, 50, 75)]
 
     # weights for each criteria
-    w_list = [100, # base points (100)
+    w_list = [6, # base points (100)
               200, # exact tissue type match (200)
               125, # highly sensitized (125)
               -5, # at least one antibody mismatch (-5)
@@ -315,6 +337,27 @@ def initialize_edge_unos(e, alpha, num_weight_measurements,
         e.draw_edge_weight = lambda x: fixed_weight
         e.weight_list = [fixed_weight] * num_weight_measurements
         e.true_mean_weight = fixed_weight
+
+
+def initialize_edge_dro(e, type, num_weight_measurements,
+                    rs=None):
+    # a toy-model distribution: select alpha (integer) number of edges to have high expectation (weight = 10 or 200 w/
+    # prob. 0.5). all other edges have weight 10.
+    # type 1 = probabilistic, type 2 = deterministic.
+    if rs is None:
+        rs = np.random.RandomState(0)
+
+    low_weight = 10
+    high_weight = 200
+
+    if type == 1:
+        e.draw_edge_weight = lambda x: x.choice([low_weight, high_weight])
+        e.weight_list = [e.draw_edge_weight(rs) for _ in range(num_weight_measurements)]
+        e.true_mean_weight = (low_weight + high_weight) / 2.0
+    elif type == 0:
+        e.draw_edge_weight = lambda x: low_weight
+        e.weight_list = [e.draw_edge_weight(rs) for _ in range(num_weight_measurements)]
+        e.true_mean_weight = low_weight
 
 
 def set_nominal_edge_weight(digraph, ndd_list):
@@ -424,7 +467,7 @@ def main():
                         default=0)
     parser.add_argument('--alpha-list',
                         type=float,
-                        help='a list of alpha values : the fraction of edges that are random.',
+                        help='a list of alpha values : the fraction of edges that are random (for weight type = binary or unos) or the number of probabilistic edges (if weight_type = dro).',
                         default=[0.5],
                         nargs='+')
     parser.add_argument('--num-trials',
@@ -465,8 +508,8 @@ def main():
     parser.add_argument('--dist-type',
                         type=str,
                         default='unos',
-                        choices=['unos', 'binary'],
-                        help='type of edge weight distribution: unos or binary')
+                        choices=['unos', 'binary', 'dro'],
+                        help='type of edge weight distribution: unos | binary | dro')
     parser.add_argument('--input-dir',
                         type=str,
                         default=None,
@@ -479,6 +522,7 @@ def main():
     args = parser.parse_args()
 
     # UNCOMMENT FOR TESTING ARGPARSE / DEBUGGING
+    # arg_string = "--num-weight-measurements=3 --dist-type=dro --gamma-list 0 1 5 10 15 --theta-list 0.1 10 100 --alpha-list 5 10 --output-dir /Users/duncan/research/DistRobustKex_output/debug --graph-type CMU --input-dir /Users/duncan/research/example_graphs"
     # arg_string = "--num-weight-measurements=3 --gamma-list 0 1 5 10 15 --theta-list 0.1 10 100 500 600 --alpha-list 0.9 --output-dir /Users/duncan/research/DistRobustKex_output/debug --graph-type CMU --input-dir /Users/duncan/research/example_graphs"
     # args = parser.parse_args(arg_string.split())
 
