@@ -270,15 +270,15 @@ def initialize_edge_unos(e, alpha, num_weight_measurements,
 
     # probabilities of meeting each criteria
     p_list = [1.0, # base points (100)
-              0.005, # exact tissue type match (200)
-              0.12, # highly sensitized (125)
+              0.3, # exact tissue type match (200)
+              0.6, # highly sensitized (125)
               0.5, # at least one antibody mismatch (-5)
               0.01, # patient is <18 (100)
               0.001, # prior organ donor (150)
               0.5] # geographic proximity (0, 25, 50, 75)]
 
     # weights for each criteria
-    w_list = [100, # base points (100)
+    w_list = [6, # base points (100)
               200, # exact tissue type match (200)
               125, # highly sensitized (125)
               -5, # at least one antibody mismatch (-5)
