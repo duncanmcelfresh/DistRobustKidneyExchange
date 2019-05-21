@@ -74,10 +74,15 @@ def robust_kex_experiment(args):
                                         rs=rs,
                                         dist_type=dist_type)
 
+                # method 1: solve the non-robust approach with *true edge means*
+                set_nominal_edge_weight(digraph, ndd_list)
+                sol_nonrobust_truemean = optimize_picef(OptConfig(digraph, ndd_list, cycle_cap, chain_cap,
+                                                         verbose=verbose))
+
                 # method 1: solve the non-robust approach
                 # for this method we treat the *mean* of all measurements as the true edge weights
-                set_nominal_edge_weight(digraph, ndd_list)
-                sol_nonrobust = optimize_picef(OptConfig(digraph, ndd_list, cycle_cap, chain_cap,
+                set_sample_mean_edge_weight(digraph, ndd_list)
+                sol_nonrobust_samplemean = optimize_picef(OptConfig(digraph, ndd_list, cycle_cap, chain_cap,
                                                          verbose=verbose))
 
                 # method 2: solve the RO approach of McElfresh et al. (2018), assuming a symmetric edge weight distribution
@@ -114,7 +119,7 @@ def robust_kex_experiment(args):
                         # apply a realization to each edge
                         realize_edge_weights(digraph, ndd_list, rs=rs)
 
-                        realized_nonrobust_score = sum([e.weight for e in sol_nonrobust.matching_edges])
+                        realized_nonrobust_truemean_score = sum([e.weight for e in sol_nonrobust_truemean.matching_edges])
 
                         write_line(f,
                                    graph_name,
@@ -123,10 +128,24 @@ def robust_kex_experiment(args):
                                    i_realization,
                                    cycle_cap,
                                    chain_cap,
-                                   'nonrobust',
+                                   'nonrobust_truemean',
                                    'None',
                                    0,
                                    realized_nonrobust_score)
+
+                        realized_nonrobust_samplemean_score = sum([e.weight for e in sol_nonrobust_samplemean.matching_edges])
+
+                        write_line(f,
+                                   graph_name,
+                                   i_trial,
+                                   alpha,
+                                   i_realization,
+                                   cycle_cap,
+                                   chain_cap,
+                                   'nonrobust_samplemean',
+                                   'None',
+                                   0,
+                                   realized_nonrobust_samplemean_score)
 
                         # find the optimal matching, given true weights
                         sol_opt = optimize_picef(OptConfig(digraph, ndd_list, cycle_cap, chain_cap,
@@ -282,7 +301,7 @@ def initialize_edge_unos(e, alpha, num_weight_measurements,
         p_list_fixed[5] = b_realized[5]
         p_list_fixed[6] = b_realized[6]
 
-        e.draw_edge_weight = lambda x: sample_edge_weight_distribution_unos(rs, w_list, p_list_fixed)[0]
+        e.draw_edge_weight = lambda x: sample_edge_weight_distribution_unos(x, w_list, p_list_fixed)[0]
         e.weight_list = [e.draw_edge_weight(rs) for _ in range(num_weight_measurements)]
         e.true_mean_weight = np.dot(p_list_fixed, w_list)
 
@@ -305,6 +324,16 @@ def set_nominal_edge_weight(digraph, ndd_list):
     for n in ndd_list:
         for e in n.edges:
             e.weight = e.true_mean_weight
+
+
+def set_sample_mean_edge_weight(digraph, ndd_list):
+    # for each edge, set the property edge.weight to be the mean of edge.weight_list
+    # this is used for the *nominal* (non-robust) approach
+    for e in digraph.es:
+        e.weight = np.mean(e.weight_list)
+    for n in ndd_list:
+        for e in n.edges:
+            e.weight = np.mean(e.weight_list)
 
 
 def set_RO_weight_parameters(digraph, ndd_list):
@@ -449,7 +478,7 @@ def main():
     args = parser.parse_args()
 
     # UNCOMMENT FOR TESTING ARGPARSE / DEBUGGING
-    # arg_string = "--num-weight-measurements=3 --gamma-list 0 1 2 --theta-list 0.1 10 100 500 600 --alpha-list 0.75 --output-dir /Users/duncan/research/DistRobustKex_output --graph-type CMU --input-dir /Users/duncan/research/example_graphs"
+    # arg_string = "--num-weight-measurements=3 --gamma-list 0 1 5 10 15 --theta-list 0.1 10 100 500 600 --alpha-list 0.9 --output-dir /Users/duncan/research/DistRobustKex_output --graph-type CMU --input-dir /Users/duncan/research/example_graphs"
     # args = parser.parse_args(arg_string.split())
 
     robust_kex_experiment(args)
