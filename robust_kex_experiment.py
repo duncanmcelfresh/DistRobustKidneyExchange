@@ -31,7 +31,6 @@ def robust_kex_experiment(args):
     num_weight_realizations = args.num_weight_realizations
     alpha_list = args.alpha_list
     theta_list = args.theta_list
-    # protection_level = args.protection_level
     gamma_list = args.gamma_list
     num_trials = args.num_trials
     dist_type = args.dist_type
@@ -292,8 +291,8 @@ def initialize_edge_unos(e, alpha, num_weight_measurements,
 
     # probabilities of meeting each criteria
     p_list = [1.0, # base points (100)
-              0.3, # exact tissue type match (200)
-              0.6, # highly sensitized (125)
+              0.5, # exact tissue type match (200)
+              0.5, # highly sensitized (125)
               0.5, # at least one antibody mismatch (-5)
               0.01, # patient is <18 (100)
               0.001, # prior organ donor (150)
@@ -347,8 +346,8 @@ def initialize_edge_dro(e, type, num_weight_measurements,
     if rs is None:
         rs = np.random.RandomState(0)
 
-    low_weight = 10
-    high_weight = 200
+    low_weight = 180
+    high_weight = 400 + 180
 
     if type == 1:
         e.draw_edge_weight = lambda x: x.choice([low_weight, high_weight])
@@ -522,8 +521,8 @@ def main():
     args = parser.parse_args()
 
     # UNCOMMENT FOR TESTING ARGPARSE / DEBUGGING
-    # arg_string = "--num-weight-measurements=3 --dist-type=dro --gamma-list 0 1 5 10 15 --theta-list 0.1 10 100 --alpha-list 5 10 --output-dir /Users/duncan/research/DistRobustKex_output/debug --graph-type CMU --input-dir /Users/duncan/research/example_graphs"
-    # arg_string = "--num-weight-measurements=3 --gamma-list 0 1 5 10 15 --theta-list 0.1 10 100 500 600 --alpha-list 0.9 --output-dir /Users/duncan/research/DistRobustKex_output/debug --graph-type CMU --input-dir /Users/duncan/research/example_graphs"
+    # arg_string = "--num-weight-measurements=3 --dist-type=dro --gamma-list 1 5 10 15 --theta-list 50 100 150 --alpha-list 20 --output-dir /Users/duncan/research/DistRobustKex_output/debug --graph-type CMU --input-dir /Users/duncan/research/example_graphs"
+    # arg_string = "--num-weight-measurements=3 --dist-type=binary --gamma-list 1 5 10 15 --theta-list 0.0 50 100 150 200 --alpha-list 0.5 0.9  --output-dir /Users/duncan/research/DistRobustKex_output/debug --graph-type CMU --input-dir /Users/duncan/research/graphs/graphs_from_john/graphs_64"
     # args = parser.parse_args(arg_string.split())
 
     robust_kex_experiment(args)

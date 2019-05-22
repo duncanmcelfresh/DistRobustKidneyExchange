@@ -4,7 +4,12 @@ import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 
-output_file = '/Users/duncan/research/DistRobustKex_output/robust_kex_experiment_20190521_114621.csv'
+output_file = '/Users/duncan/research/DistRobustKex_output/robust_kex_experiment_20190522_071810.csv'
+# output_file = '/Users/duncan/research/DistRobustKex_output/robust_kex_experiment_20190521_114621.csv'
+# output_file = '/Users/duncan/research/DistRobustKex_output/robust_kex_experiment_20190521_143056.csv'
+# output_file = '/Users/duncan/research/DistRobustKex_output/debug/robust_kex_experiment_20190522_103601.csv'
+# output_file = '/Users/duncan/research/DistRobustKex_output/binary_graphs64.csv'
+
 
 df = pd.read_csv(output_file, skiprows=1)
 
@@ -13,6 +18,8 @@ df.columns = [str.strip(c) for c in df.columns]
 
 # strip whitespace from the 'method' columns
 df['method'] = df['method'].str.replace(" ","")
+
+df['parameter_name'] = df['parameter_name'].str.replace(" ","")
 
 # add a unique identifier for each independent realization, which consists of:
 # (graph_name, trial_num, alpha, realization_num, cycle_cap, chain_cap) tuple
@@ -39,21 +46,83 @@ df_clean[df_clean['parameter_value'].isna()]
 assert len(df_clean[df_clean['method'] == 'optimal']['relative_opt_gap'].unique()) == 1
 assert df_clean[df_clean['method'] == 'optimal']['relative_opt_gap'].unique()[0] == 0.0
 
+# for each trial ('graph_name', 'trial_num', 'alpha', 'cycle_cap', 'chain_cap'), empirically find the best
+# \theta and \Gamma values. display only results from these.
+trial_id_columns = ['graph_name', 'trial_num', 'alpha', 'cycle_cap', 'chain_cap']
+df_clean['trial_uid'] = df_clean[trial_id_columns].apply(tuple, axis=1)
+
+# for each trial_id, find the \Gamma and \theta parameter that do best.
+# best: select \Gamma that maximizes min weight, and \theta that maximizes expected weight
+
+# find \Gamma that maximizes min weight
+# first find the worst-case optimality gap for each trial_id and for each gamma (parameter value)
+df_gamma_worst = df_clean[df_clean['method'] == 'RO'].groupby(['parameter_value', 'trial_uid'])['relative_opt_gap'].min().reset_index()
+
+# now find the best worst-case for each trial_id
+df_gamma_bestworst_idx = df_gamma_worst.groupby(['trial_uid'])['relative_opt_gap'].idxmax()
+df_gamma_bestworst = df_gamma_worst.groupby(['trial_uid'])['relative_opt_gap'].max()
+
+# identify the gamma values that achieve the best worst-case
+gamma_opt = df_gamma_worst.loc[df_gamma_bestworst_idx]
+gamma_opt['method'] = 'RO'
 
 
+# find \theta that maximizes expected weight
+# first find the expected optimality gap for each trial_id and for each theta (parameter value)
+df_theta_expected = df_clean[df_clean['method'] == 'DRO'].groupby(['parameter_value', 'trial_uid'])['relative_opt_gap'].mean().reset_index()
+# now find the gamma that maximizes the worst-case
+df_theta_bestexpected_idx = df_theta_expected.groupby(['trial_uid'])['relative_opt_gap'].idxmax()
+df_theta_bestexpected = df_theta_expected.groupby(['trial_uid'])['relative_opt_gap'].max()
 
+# identify the gamma values that achieve the best worst-case
+theta_opt = df_theta_expected.loc[df_theta_bestexpected_idx]
+theta_opt['method'] = 'DRO'
 
+# for each trial_id, take only the optimal theta and optimal gamma values
+filter_cols = ['trial_uid', 'method', 'parameter_value']
+df_clean['filter_id'] = df_clean[filter_cols].apply(tuple, axis=1)
+theta_opt['filter_id'] = theta_opt[filter_cols].apply(tuple, axis=1)
+gamma_opt['filter_id'] = gamma_opt[filter_cols].apply(tuple, axis=1)
 
+# take only the RO & DRO rows that are in theta_opt and gamma_opt
+
+df_nonrobust = df_clean.loc[df_clean['method'].isin(['optimal', 'nonrobust_samplemean', 'nonrobust_truemean'])]
+
+df_opt_theta = df_clean.loc[df_clean['filter_id'].isin(theta_opt['filter_id'])]
+df_opt_gamma = df_clean.loc[df_clean['filter_id'].isin(gamma_opt['filter_id'])]
+
+df_final = pd.concat([df_nonrobust, df_opt_gamma, df_opt_theta]).reset_index()
+
+# df_final['method_str'] = df_final['method'].astype(str)
+
+# plot final df
+method_order = ['optimal',
+                'nonrobust_truemean',
+                'nonrobust_samplemean',
+                'RO',
+                'DRO']
+g = sns.catplot(x='alpha',
+                y='relative_opt_gap',
+                hue='method',
+                hue_order=method_order,
+                data=df_final,
+                kind='box')
 # -----------------------------------
 # --------- initial plots -----------
 # -----------------------------------
 
 # show opt gap by theta, for each alpha
 
+graph_names = df_clean['graph_name'].unique()
+
+graph_num = 1
 param = 'relative_opt_gap'
 # param = 'abs_opt_gap'
 
-df_plot = df_clean[df_clean['alpha'] == 0.9]
+# print('alpha values: %s' % str(df_clean['alpha'].unique()))
+
+# df_plot = df_clean[df_clean['alpha'] == 20]
+df_plot = df_clean[(df_clean['alpha'] == 20) & (df_clean['graph_name'] == graph_names[graph_num])]
 
 fig, axs = plt.subplots(1, 5, figsize=(12, 3), sharey=True)
 
@@ -71,6 +140,7 @@ g = sns.catplot(x="parameter_value",
                 height=height,
                 aspect=aspect)
 ax.set_title('OPT')
+plt.close(g.fig)
 
 df_method = df_plot[df_plot['method'] == 'nonrobust_truemean']
 ax = axs[1]
@@ -83,6 +153,7 @@ g = sns.catplot(x="parameter_value",
                 height=height,
                 aspect=aspect)
 ax.set_title('NR-truemean')
+plt.close(g.fig)
 
 df_method = df_plot[df_plot['method'] == 'nonrobust_samplemean']
 ax = axs[2]
@@ -95,6 +166,7 @@ g = sns.catplot(x="parameter_value",
                 height=height,
                 aspect=aspect)
 ax.set_title('NR-samplemean')
+plt.close(g.fig)
 
 
 df_method = df_plot[df_plot['method'] == 'RO']
@@ -109,7 +181,9 @@ g = sns.catplot(x="parameter_value",
                 aspect=aspect)
 ax.set_title('RO')
 ax.set_xlabel('Gamma')
-
+for tick in ax.get_xticklabels():
+    tick.set_rotation(45)
+plt.close(g.fig)
 
 df_method = df_plot[df_plot['method'] == 'DRO']
 ax = axs[4]
@@ -123,8 +197,14 @@ g = sns.catplot(x="parameter_value",
                 aspect=aspect)
 ax.set_title('DRO')
 ax.set_xlabel('theta')
+for tick in ax.get_xticklabels():
+    tick.set_rotation(45)
+plt.close(g.fig)
 
 plt.tight_layout()
+
+
+
 
 
 plt.close('all')
