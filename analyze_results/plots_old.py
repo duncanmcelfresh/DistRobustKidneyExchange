@@ -4,12 +4,15 @@ import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 
-output_file = '/Users/duncan/research/DistRobustKex_output/robust_kex_experiment_20190522_071810.csv'
+# output_file = '/Users/duncan/research/DistRobustKex_output/robust_kex_experiment_20190522_071810.csv'
 # output_file = '/Users/duncan/research/DistRobustKex_output/robust_kex_experiment_20190521_114621.csv'
 # output_file = '/Users/duncan/research/DistRobustKex_output/robust_kex_experiment_20190521_143056.csv'
 # output_file = '/Users/duncan/research/DistRobustKex_output/debug/robust_kex_experiment_20190522_103601.csv'
 # output_file = '/Users/duncan/research/DistRobustKex_output/binary_graphs64.csv'
-
+# output_file = '/Users/duncan/research/DistRobustKex_output/robust_kex_experiment_20190522_121656.csv'
+output_file = '/Users/duncan/research/DistRobustKex_output/robust_kex_experiment_20190522_140213.csv'
+# output_file = '/Users/duncan/research/DistRobustKex_output/robust_kex_experiment_20190522_160843.csv'
+#
 
 df = pd.read_csv(output_file, skiprows=1)
 
@@ -17,9 +20,9 @@ df = pd.read_csv(output_file, skiprows=1)
 df.columns = [str.strip(c) for c in df.columns]
 
 # strip whitespace from the 'method' columns
-df['method'] = df['method'].str.replace(" ","")
+df['method'] = df['method'].str.replace(" ", "")
 
-df['parameter_name'] = df['parameter_name'].str.replace(" ","")
+df['parameter_name'] = df['parameter_name'].str.replace(" ", "")
 
 # add a unique identifier for each independent realization, which consists of:
 # (graph_name, trial_num, alpha, realization_num, cycle_cap, chain_cap) tuple
@@ -56,7 +59,8 @@ df_clean['trial_uid'] = df_clean[trial_id_columns].apply(tuple, axis=1)
 
 # find \Gamma that maximizes min weight
 # first find the worst-case optimality gap for each trial_id and for each gamma (parameter value)
-df_gamma_worst = df_clean[df_clean['method'] == 'RO'].groupby(['parameter_value', 'trial_uid'])['relative_opt_gap'].min().reset_index()
+df_gamma_worst = df_clean[df_clean['method'] == 'RO'].groupby(['parameter_value', 'trial_uid'])[
+    'relative_opt_gap'].min().reset_index()
 
 # now find the best worst-case for each trial_id
 df_gamma_bestworst_idx = df_gamma_worst.groupby(['trial_uid'])['relative_opt_gap'].idxmax()
@@ -66,10 +70,11 @@ df_gamma_bestworst = df_gamma_worst.groupby(['trial_uid'])['relative_opt_gap'].m
 gamma_opt = df_gamma_worst.loc[df_gamma_bestworst_idx]
 gamma_opt['method'] = 'RO'
 
-
 # find \theta that maximizes expected weight
 # first find the expected optimality gap for each trial_id and for each theta (parameter value)
-df_theta_expected = df_clean[df_clean['method'] == 'DRO'].groupby(['parameter_value', 'trial_uid'])['relative_opt_gap'].mean().reset_index()
+# df_theta_expected = df_clean[df_clean['method'] == 'DRO'].groupby(['parameter_value', 'trial_uid'])['relative_opt_gap'].min().reset_index()
+df_theta_expected = df_clean[df_clean['method'] == 'DRO'].groupby(['parameter_value', 'trial_uid'])[
+    'relative_opt_gap'].mean().reset_index()
 # now find the gamma that maximizes the worst-case
 df_theta_bestexpected_idx = df_theta_expected.groupby(['trial_uid'])['relative_opt_gap'].idxmax()
 df_theta_bestexpected = df_theta_expected.groupby(['trial_uid'])['relative_opt_gap'].max()
@@ -121,8 +126,8 @@ param = 'relative_opt_gap'
 
 # print('alpha values: %s' % str(df_clean['alpha'].unique()))
 
-# df_plot = df_clean[df_clean['alpha'] == 20]
-df_plot = df_clean[(df_clean['alpha'] == 20) & (df_clean['graph_name'] == graph_names[graph_num])]
+df_plot = df_clean[df_clean['alpha'] == 0.3]
+# df_plot = df_clean[(df_clean['alpha'] == 20) & (df_clean['graph_name'] == graph_names[graph_num])]
 
 fig, axs = plt.subplots(1, 5, figsize=(12, 3), sharey=True)
 
@@ -168,7 +173,6 @@ g = sns.catplot(x="parameter_value",
 ax.set_title('NR-samplemean')
 plt.close(g.fig)
 
-
 df_method = df_plot[df_plot['method'] == 'RO']
 ax = axs[3]
 g = sns.catplot(x="parameter_value",
@@ -203,12 +207,7 @@ plt.close(g.fig)
 
 plt.tight_layout()
 
-
-
-
-
 plt.close('all')
-
 
 # df_plot = df_clean[df_clean['num_items'].isin(num_items_list) & df_clean['method'].isin(display_methods)]
 alpha_list = [0.5, 0.9]
@@ -217,7 +216,7 @@ df_plot = df_clean[df_clean['alpha'] == 0.5]
 method_order = ['optimal',
                 'nonrobust',
                 'DRO']
-                # 'RO']
+# 'RO']
 g = sns.catplot(x="parameter_value",
                 y="relative_opt_gap",
                 col="method",
@@ -226,7 +225,7 @@ g = sns.catplot(x="parameter_value",
                 data=df_plot,
                 kind="box",
                 sharex=False,
-                height=3) #, aspect=.7)
+                height=3)  # , aspect=.7)
 
 # reset x-axis limits
 for i, ax in enumerate(g.axes.flatten()):
@@ -239,13 +238,13 @@ for i, ax in enumerate(g.axes.flatten()):
 # reset axes
 plt.tight_layout()
 
-
 # -----------------------------------
 # --------- final plots -------------
 # -----------------------------------
 from matplotlib import rc
 # rc('text', usetex=False)
 import matplotlib.font_manager as font_manager
+
 plt.rcParams["font.family"] = "Times New Roman"
 
 # palette = sns.color_palette("cubehelix", 3)
@@ -270,16 +269,16 @@ df_plot = df_clean[df_clean['num_items'].isin(num_items_list)
 # ----
 
 g = sns.catplot(x="k", y="opt_gap",
-                    hue="method",
-                    col="num_features",
-                    row='num_items',
-                    data=df_plot,
-                    kind="box",
-                    palette=palette,
-                    height=3,
-                    flierprops={'marker': '+'},
-                    legend=False,
-                    hue_order=display_methods) #, aspect=.7)
+                hue="method",
+                col="num_features",
+                row='num_items',
+                data=df_plot,
+                kind="box",
+                palette=palette,
+                height=3,
+                flierprops={'marker': '+'},
+                legend=False,
+                hue_order=display_methods)  # , aspect=.7)
 
 # set title for each subplot
 for i, ax in enumerate(g.axes.flatten()):
@@ -289,7 +288,7 @@ for i, ax in enumerate(g.axes.flatten()):
 font = font_manager.FontProperties(family='Courier New')
 leg_ax = g.axes.flatten()[0]
 handles, _ = leg_ax.get_legend_handles_labels()
-leg_ax.legend(title='Method', handles=handles, prop=font , labels=labels)
+leg_ax.legend(title='Method', handles=handles, prop=font, labels=labels)
 
 # set x axis label
 leg_ax.set_ylabel('Absolute Optimality Gap')
@@ -307,16 +306,16 @@ leg_ax.set_ylabel('Absolute Optimality Gap')
 
 
 g = sns.catplot(x="k", y="true_recommendation_rank",
-                    hue="method",
-                    col="num_features",
-                    row='num_items',
-                    data=df_plot,
-                    kind="box",
-                    palette=palette,
-                    height=3,
-                    flierprops={'marker': '+'},
-                    legend=False,
-                    hue_order=display_methods)
+                hue="method",
+                col="num_features",
+                row='num_items',
+                data=df_plot,
+                kind="box",
+                palette=palette,
+                height=3,
+                flierprops={'marker': '+'},
+                legend=False,
+                hue_order=display_methods)
 
 # set title for each subplot
 for i, ax in enumerate(g.axes.flatten()):
@@ -328,20 +327,19 @@ for i, ax in enumerate(g.axes.flatten()):
 font = font_manager.FontProperties(family='Courier New')
 leg_ax = g.axes.flatten()[0]
 handles, _ = leg_ax.get_legend_handles_labels()
-leg_ax.legend(title='Method', handles=handles, prop=font , labels=labels)
+leg_ax.legend(title='Method', handles=handles, prop=font, labels=labels)
 
 # set x axis label
 leg_ax.set_ylabel('True Rank of Recommended Item')
 
-
 # --- now worst-case plots
 
-df_worstcase_rank = df_plot.groupby(['num_items', 'num_features', 'method', 'k'])['true_recommendation_rank'].max().reset_index()
+df_worstcase_rank = df_plot.groupby(['num_items', 'num_features', 'method', 'k'])[
+    'true_recommendation_rank'].max().reset_index()
 df_worstcase_obj_gap = df_plot.groupby(['num_items', 'num_features', 'method', 'k'])['opt_gap'].max().reset_index()
 
 markers = ["x", "+", "o"]
 linestyles = [":", "--", '-']
-
 
 # ----
 # plot 3: WORST CASE objective gap
@@ -353,17 +351,17 @@ linestyles = [":", "--", '-']
 # ----
 
 g = sns.catplot(x="k", y="opt_gap",
-                    hue="method",
-                    col="num_features",
-                    row='num_items',
-                    data=df_worstcase_obj_gap,
-                    kind="point",
-                    palette=palette,
-                    height=3,
-                    legend=False,
-                    hue_order=display_methods,
-                    markers=markers,
-                    linestyles=linestyles)
+                hue="method",
+                col="num_features",
+                row='num_items',
+                data=df_worstcase_obj_gap,
+                kind="point",
+                palette=palette,
+                height=3,
+                legend=False,
+                hue_order=display_methods,
+                markers=markers,
+                linestyles=linestyles)
 
 # set title for each subplot
 for i, ax in enumerate(g.axes.flatten()):
@@ -378,7 +376,6 @@ leg_ax.legend(title='Method', handles=handles, prop=font, labels=labels)
 # set x axis label
 leg_ax.set_ylabel('Wost-Case Absolute Optimality Gap')
 
-
 # ----
 # plot 4: WORST CASE rank of recommended item (line plot), by number of features and number of items.
 #  (same as plot 1, but for rank)
@@ -390,17 +387,17 @@ leg_ax.set_ylabel('Wost-Case Absolute Optimality Gap')
 
 
 g = sns.catplot(x="k", y="true_recommendation_rank",
-                    hue="method",
-                    col="num_features",
-                    row='num_items',
-                    data=df_worstcase_rank,
-                    kind="point",
-                    palette=palette,
-                    height=3,
-                    legend=False,
-                    hue_order=display_methods,
-                    markers=markers,
-                    linestyles=linestyles)
+                hue="method",
+                col="num_features",
+                row='num_items',
+                data=df_worstcase_rank,
+                kind="point",
+                palette=palette,
+                height=3,
+                legend=False,
+                hue_order=display_methods,
+                markers=markers,
+                linestyles=linestyles)
 
 # set title for each subplot
 for i, ax in enumerate(g.axes.flatten()):
@@ -416,17 +413,6 @@ leg_ax.legend(title='Method', handles=handles, prop=font, labels=labels)
 
 # set x axis label
 leg_ax.set_ylabel('Worst-Case True Rank of Recommended Item')
-
-
-
-
-
-
-
-
-
-
-
 
 # -----------------------------------
 # --- plots, for initial analysis ---
@@ -452,13 +438,12 @@ display_methods = ['random', 'ac', 'opt']
 df_plot = df_clean[df_clean['num_items'].isin(num_items_list) & df_clean['method'].isin(display_methods)]
 
 g = sns.catplot(x="k", y="pct_objval_scaled",
-                    hue="method", col="num_features", row='num_items',
-                    data=df_plot, kind="box",
-                    height=3) #, aspect=.7)
+                hue="method", col="num_features", row='num_items',
+                data=df_plot, kind="box",
+                height=3)  # , aspect=.7)
 
 plt.tight_layout()
 plt.savefig('/Users/duncan/Desktop/objval_scaled.png')
-
 
 # -- pct_objval unscaled --
 
@@ -469,14 +454,13 @@ display_methods = ['random', 'ac', 'opt']
 df_plot = df_clean[df_clean['num_items'].isin(num_items_list) & df_clean['method'].isin(display_methods)]
 
 g = sns.catplot(x="k", y="pct_objval",
-                    hue="method", col="num_features", row='num_items',
-                    data=df_plot, kind="box",
-                    height=3) #, aspect=.7)
+                hue="method", col="num_features", row='num_items',
+                data=df_plot, kind="box",
+                height=3)  # , aspect=.7)
 
 plt.tight_layout()
 
 plt.savefig('/Users/duncan/Desktop/pct_objval_unscaled.png')
-
 
 # -- objval unscaled, without offset --
 
@@ -486,13 +470,12 @@ display_methods = ['random', 'ac', 'opt']
 df_plot = df_clean[df_clean['num_items'].isin(num_items_list) & df_clean['method'].isin(display_methods)]
 
 g = sns.catplot(x="k", y="pct_objval_no_offset",
-                    hue="method", col="num_features", row='num_items',
-                    data=df_plot, kind="box",
-                    height=3) #, aspect=.7)
+                hue="method", col="num_features", row='num_items',
+                data=df_plot, kind="box",
+                height=3)  # , aspect=.7)
 
 plt.tight_layout()
 plt.savefig('/Users/duncan/Desktop/objval_no_offset.png')
-
 
 # -- objval unscaled, without offset --
 
@@ -502,9 +485,9 @@ display_methods = ['random', 'ac', 'opt', 'best_possible']
 df_plot = df_clean[df_clean['num_items'].isin(num_items_list) & df_clean['method'].isin(display_methods)]
 
 g = sns.catplot(x="k", y="objval",
-                    hue="method", col="num_features", row='num_items',
-                    data=df_plot, kind="box",
-                    height=3) #, aspect=.7)
+                hue="method", col="num_features", row='num_items',
+                data=df_plot, kind="box",
+                height=3)  # , aspect=.7)
 
 plt.tight_layout()
 plt.savefig('/Users/duncan/Desktop/actual_objval.png')
@@ -517,13 +500,12 @@ display_methods = ['random', 'ac', 'opt', 'best_possible']
 df_plot = df_clean[df_clean['num_items'].isin(num_items_list) & df_clean['method'].isin(display_methods)]
 
 g = sns.catplot(x="k", y="objval_scaled",
-                    hue="method", col="num_features", row='num_items',
-                    data=df_plot, kind="box",
-                    height=3) #, aspect=.7)
+                hue="method", col="num_features", row='num_items',
+                data=df_plot, kind="box",
+                height=3)  # , aspect=.7)
 
 plt.tight_layout()
 plt.savefig('/Users/duncan/Desktop/actual_objval_scaled.png')
-
 
 # -- difference between optimal objval and actual --
 
@@ -533,17 +515,12 @@ display_methods = ['random', 'ac', 'opt']
 df_plot = df_clean[df_clean['num_items'].isin(num_items_list) & df_clean['method'].isin(display_methods)]
 
 g = sns.catplot(x="k", y="objval_diff",
-                    hue="method", col="num_features", row='num_items',
-                    data=df_plot, kind="box",
-                    height=3) #, aspect=.7)
+                hue="method", col="num_features", row='num_items',
+                data=df_plot, kind="box",
+                height=3)  # , aspect=.7)
 
 plt.tight_layout()
 plt.savefig('/Users/duncan/Desktop/objval_diff.png')
-
-
-
-
-
 
 # -- rank --
 
@@ -554,9 +531,9 @@ display_methods = ['random', 'ac', 'opt']
 df_plot = df_clean[df_clean['num_items'].isin(num_items_list) & df_clean['method'].isin(display_methods)]
 
 g = sns.catplot(x="k", y="true_recommendation_rank",
-                    hue="method", col="num_features", row='num_items',
-                    data=df_plot, kind="box",
-                    height=3) #, aspect=.7)
+                hue="method", col="num_features", row='num_items',
+                data=df_plot, kind="box",
+                height=3)  # , aspect=.7)
 
 for ax in g.axes.flat:
     ax.invert_yaxis()
@@ -564,7 +541,6 @@ for ax in g.axes.flat:
 plt.tight_layout()
 
 plt.savefig('/Users/duncan/Desktop/rank.png')
-
 
 # --- plot worst-case rank ---
 
@@ -576,9 +552,9 @@ df_tmp = df_clean[df_clean['num_items'].isin(num_items_list) & df_clean['method'
 df_plot = df_tmp.groupby(['num_items', 'num_features', 'method', 'k'])['true_recommendation_rank'].max().reset_index()
 
 g = sns.catplot(x="k", y="true_recommendation_rank",
-                    hue="method", col="num_features", row='num_items',
-                    data=df_plot, kind="point",
-                    height=3) #, aspect=.7)
+                hue="method", col="num_features", row='num_items',
+                data=df_plot, kind="point",
+                height=3)  # , aspect=.7)
 
 for ax in g.axes.flat:
     ax.invert_yaxis()
@@ -586,7 +562,6 @@ for ax in g.axes.flat:
 plt.tight_layout()
 
 plt.savefig('/Users/duncan/Desktop/worstcase_rank.png')
-
 
 # --- plot worst-case optimality gap ---
 
@@ -598,9 +573,9 @@ df_tmp = df_clean[df_clean['num_items'].isin(num_items_list) & df_clean['method'
 df_plot = df_tmp.groupby(['num_items', 'num_features', 'method', 'k'])['pct_objval_scaled'].max().reset_index()
 
 g = sns.catplot(x="k", y="pct_objval_scaled",
-                    hue="method", col="num_features", row='num_items',
-                    data=df_plot, kind="point",
-                    height=3) #, aspect=.7)
+                hue="method", col="num_features", row='num_items',
+                data=df_plot, kind="point",
+                height=3)  # , aspect=.7)
 
 plt.tight_layout()
 

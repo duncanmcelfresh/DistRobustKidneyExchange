@@ -6,10 +6,10 @@ from kidney_digraph import Digraph, KidneyReadException
 from kidney_ndds import Ndd, NddEdge
 
 
-def read_UNOS_graph(directory):
-    # read a UNOS-format exchange, and return a list of kidney_ndd.Ndd objects and a kidney_digraph.Digraph object.
+def read_unos_graph(directory):
+    # read a unos-format exchange, and return a list of kidney_ndd.Ndd objects and a kidney_digraph.Digraph object.
     #
-    # each UNOS-format exchange is contained in a subdirectory with the naming format 'KPD_CSV_IO_######'. Each exchange
+    # each unos-format exchange is contained in a subdirectory with the naming format 'KPD_CSV_IO_######'. Each exchange
     # subdirectory must contain a file of the format ########_edgeweights.csv
 
     # look for edge & recipient files
@@ -91,26 +91,26 @@ def read_UNOS_graph(directory):
 
 
 # TODO: TEST THIS GENERATOR. CURRENTLY UNTESTED.
-def get_UNOS_graphs(directory):
-    # create a generator that produces kidney exchange graphs, given a directory containing UNOS-format exchange graph
+def get_unos_graphs(directory):
+    # create a generator that produces kidney exchange graphs, given a directory containing unos-format exchange graph
     # files.
 
-    # get all subdirectories that look like UNOS files (KPD_CSV_IO_...)
+    # get all subdirectories that look like unos files (KPD_CSV_IO_...)
     kpd_dirs = glob.glob(os.path.join(directory, 'KPD_CSV_IO*' + os.sep))
 
     for sub_directory in sorted(kpd_dirs):
 
         # read the graph
-        digraph, vtx_index, ndd_list, ndd_index = read_UNOS_graph(sub_directory)
+        digraph, vtx_index, ndd_list, ndd_index = read_unos_graph(sub_directory)
 
         yield digraph, ndd_list
 
 
 
-def read_CMU_format(details_filename, maxcard_filename,
+def read_cmu_format(details_filename, maxcard_filename,
                      frac_edges=None,
                      seed=101):
-    # read a "CMU" format exchange graph, using the details and maxcard files
+    # read a "cmu" format exchange graph, using the details and maxcard files
     #
     # optional : frac_edges in (0, 1) adds only a fraction of the edges to the Digraph.
 
@@ -181,7 +181,7 @@ def read_CMU_format(details_filename, maxcard_filename,
 
 
 def get_cmu_graphs(directory):
-    # create a generator that produces kidney exchange graphs, given a directory containing "CMU" format exchange
+    # create a generator that produces kidney exchange graphs, given a directory containing "cmu" format exchange
     # graph files.
 
     # find all *maxcard.input files in the directory -- each corresponds to an exchange graph
@@ -196,7 +196,7 @@ def get_cmu_graphs(directory):
         assert len(details_files) == 1
         details_file = details_files[0]
 
-        digraph, ndd_list, name = read_CMU_format(details_file, maxcard_file)
+        digraph, ndd_list, name = read_cmu_format(details_file, maxcard_file)
 
         yield digraph, ndd_list, name
 

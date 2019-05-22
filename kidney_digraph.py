@@ -518,7 +518,8 @@ class Digraph:
 
     def __str__(self):
         return "\n".join([str(v) for v in self.vs])
-        
+
+
 def read_digraph(lines):
     """Reads a digraph from an array of strings in the input format."""
 

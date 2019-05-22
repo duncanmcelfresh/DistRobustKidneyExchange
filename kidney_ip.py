@@ -33,7 +33,8 @@ W_small = 1e4
 # for testing modifications to the formulations
 test = True
 
-relax_discount = 0.99 # total discount is 1.0
+relax_discount = 0.99  # total discount is 1.0
+
 
 ###################################################################################################
 #                                                                                                 #
@@ -43,6 +44,7 @@ relax_discount = 0.99 # total discount is 1.0
 
 class MaxIterConstraintGenException(Exception):
     pass
+
 
 class OptConfig(object):
     """The inputs (problem instance and parameters) for an optimisation run
@@ -82,15 +84,16 @@ class OptConfig(object):
         self.edge_failure_prob = 1.0 - self.edge_success_prob
         self.lp_file = lp_file
         self.relax = relax
-        self.gamma = gamma # robust uncertainty budget
+        self.gamma = gamma  # robust uncertainty budget
         self.cardinality_restriction = cardinality_restriction
         self.chain_restriction = chain_restriction
         self.cycle_restriction = cycle_restriction
-        self.protection_level = protection_level # for variable budget uncertainty: probability that U-set does not contain true edge weights
+        self.protection_level = protection_level  # for variable budget uncertainty: probability that U-set does not contain true edge weights
         self.name = name
 
         # are chains used?
         self.use_chains = (self.max_chain > 0) and (self.chain_restriction < len(self.ndds))
+
 
 class OptSolution(object):
     """An optimal solution for a kidney-exchange problem instance.
@@ -127,7 +130,7 @@ class OptSolution(object):
             self.total_weight = 0
         else:
             self.total_weight = (sum(c.weight for c in chains) +
-                                sum(failure_aware_cycle_weight(c, digraph, edge_success_prob) for c in cycles))
+                                 sum(failure_aware_cycle_weight(c, digraph, edge_success_prob) for c in cycles))
         self.edge_success_prob = edge_success_prob
         self.cycle_obj = cycle_obj
         self.matching_edges = matching_edges
@@ -136,7 +139,7 @@ class OptSolution(object):
         self.optimistic_weight = optimistic_weight
         self.cycle_restriction = cycle_restriction
         self.chain_restriction = chain_restriction
-        self.cardinality_restriction=cardinality_restriction
+        self.cardinality_restriction = cardinality_restriction
         self.cycle_cap = cycle_cap
         self.chain_cap = chain_cap
         self.alpha_var = alpha_var
@@ -160,9 +163,8 @@ class OptSolution(object):
         return True
 
     def add_matching_edges(self, ndds):
-        '''
-        Set attribute 'matching_edges' using 'self.cycle_obj', 'self.chains', and 'self.digraph'
-        '''
+        '''Set attribute 'matching_edges' using self.cycle_obj, self.chains, and self.digraph'''
+
         matching_edges = []
 
         for ch in self.chains:
@@ -173,7 +175,7 @@ class OptSolution(object):
                     chain_edges.append(e)
             if len(chain_edges) == 0:
                 raise Warning("NDD edge not found")
-            for i in range(len(ch.vtx_indices)-1):
+            for i in range(len(ch.vtx_indices) - 1):
                 chain_edges.append(self.digraph.adj_mat[ch.vtx_indices[i]][ch.vtx_indices[i + 1]])
             if len(chain_edges) != (len(ch.vtx_indices)):
                 raise Warning("Chain contains %d edges, but only %d edges found" %
@@ -182,8 +184,8 @@ class OptSolution(object):
 
         for cy in self.cycle_obj:
             cycle_edges = []
-            for i in range(len(cy.vs)-1):
-                cycle_edges.append(self.digraph.adj_mat[cy.vs[i].id][cy.vs[i+1].id])
+            for i in range(len(cy.vs) - 1):
+                cycle_edges.append(self.digraph.adj_mat[cy.vs[i].id][cy.vs[i + 1].id])
             # add final edge
             cycle_edges.append(self.digraph.adj_mat[cy.vs[-1].id][cy.vs[0].id])
             if len(cycle_edges) != len(cy.vs):
@@ -193,7 +195,6 @@ class OptSolution(object):
 
         self.matching_edges = matching_edges
 
-
     def display(self):
         """Print the optimal cycles and chains to standard output."""
 
@@ -202,7 +203,7 @@ class OptSolution(object):
         print("cycles:")
         # # cs is a list of cycles, with each cycle represented as a list of vertex IDs
         # # Sort the cycles
-        if len(self.cycle_obj)>0:
+        if len(self.cycle_obj) > 0:
             for c in sorted(self.cycle_obj):
                 print(c.display())
         else:
@@ -248,8 +249,9 @@ class OptSolution(object):
     # get weight using a digraph with (possibly) different weights
     def get_weight(self, digraph, ndds, edge_success_prob=1.0):
         weight = (sum(c.get_weight(digraph, ndds, edge_success_prob) for c in self.chains) +
-                 sum(failure_aware_cycle_weight(c, digraph, edge_success_prob) for c in self.cycles))
+                  sum(failure_aware_cycle_weight(c, digraph, edge_success_prob) for c in self.cycles))
         return weight
+
 
 ###################################################################################################
 #                                                                                                 #
@@ -257,7 +259,7 @@ class OptSolution(object):
 #                                                                                                 #
 ###################################################################################################
 
-def add_chain_vars_and_constraints(digraph, ndds,use_chains, max_chain, m, vtx_to_vars,
+def add_chain_vars_and_constraints(digraph, ndds, use_chains, max_chain, m, vtx_to_vars,
                                    store_edge_positions=False):
     """Add the IP variables and constraints for chains in PICEF and HPIEF'.
 
@@ -275,10 +277,10 @@ def add_chain_vars_and_constraints(digraph, ndds,use_chains, max_chain, m, vtx_t
             by edge.grb_vars[i]. (default: False)
     """
 
-    if use_chains:  #max_chain > 0:
+    if use_chains:  # max_chain > 0:
         for v in digraph.vs:
-            v.grb_vars_in  = [[] for i in range(max_chain-1)]
-            v.grb_vars_out = [[] for i in range(max_chain-1)]
+            v.grb_vars_in = [[] for i in range(max_chain - 1)]
+            v.grb_vars_out = [[] for i in range(max_chain - 1)]
 
         for ndd in ndds:
             ndd_edge_vars = []
@@ -287,31 +289,32 @@ def add_chain_vars_and_constraints(digraph, ndds,use_chains, max_chain, m, vtx_t
                 e.edge_var = edge_var
                 ndd_edge_vars.append(edge_var)
                 vtx_to_vars[e.tgt.id].append(edge_var)
-                if max_chain>1: e.tgt.grb_vars_in[0].append(edge_var)
+                if max_chain > 1: e.tgt.grb_vars_in[0].append(edge_var)
             m.update()
             m.addConstr(quicksum(ndd_edge_vars) <= 1)
 
         dists_from_ndd = kidney_utils.get_dist_from_nearest_ndd(digraph, ndds)
 
         # Add pair->pair edge variables, indexed by position in chain
+        # e.grb_var are the chain variables for each edge.
         for e in digraph.es:
             e.grb_vars = []
             if store_edge_positions:
                 e.grb_var_positions = []
-            for i in range(max_chain-1):
-                if dists_from_ndd[e.src.id] <= i+1:
+            for i in range(max_chain - 1):
+                if dists_from_ndd[e.src.id] <= i + 1:
                     edge_var = m.addVar(vtype=GRB.BINARY)
                     e.grb_vars.append(edge_var)
                     if store_edge_positions:
-                        e.grb_var_positions.append(i+1)
+                        e.grb_var_positions.append(i + 1)
                     vtx_to_vars[e.tgt.id].append(edge_var)
                     e.src.grb_vars_out[i].append(edge_var)
-                    if i < max_chain-2:
-                        e.tgt.grb_vars_in[i+1].append(edge_var)
+                    if i < max_chain - 2:
+                        e.tgt.grb_vars_in[i + 1].append(edge_var)
             # m.update()
 
         # At each chain position, sum of edges into a vertex must be >= sum of edges out
-        for i in range(max_chain-1):
+        for i in range(max_chain - 1):
             for v in digraph.vs:
                 m.addConstr(quicksum(v.grb_vars_in[i]) >= quicksum(v.grb_vars_out[i]))
 
@@ -369,16 +372,16 @@ def create_picef_model(cfg):
 
     # number of edges in the matching
     num_edges_var = m.addVar(vtype=GRB.INTEGER)
-    pair_edge_count = [e.used_var for e in cfg.digraph.es ]
+    pair_edge_count = [e.used_var for e in cfg.digraph.es]
     if cfg.use_chains:
-        ndd_edge_count = [e.edge_var for ndd in cfg.ndds for e in ndd.edges ]
-        m.addConstr( num_edges_var == quicksum(pair_edge_count + ndd_edge_count))
+        ndd_edge_count = [e.edge_var for ndd in cfg.ndds for e in ndd.edges]
+        m.addConstr(num_edges_var == quicksum(pair_edge_count + ndd_edge_count))
     else:
-        m.addConstr( num_edges_var == quicksum(pair_edge_count))
+        m.addConstr(num_edges_var == quicksum(pair_edge_count))
 
     # add a cardinality restriction if necessary
     if cfg.cardinality_restriction is not None:
-        m.addConstr( num_edges_var <= cfg.cardinality_restriction )
+        m.addConstr(num_edges_var <= cfg.cardinality_restriction)
 
     m.update()
 
@@ -386,15 +389,14 @@ def create_picef_model(cfg):
 
 
 def optimize_picef(cfg):
-
-    m,cycles, cycle_vars, _ = create_picef_model(cfg)
+    m, cycles, cycle_vars, _ = create_picef_model(cfg)
 
     # add cycle objects
     cycle_list = []
-    for c,var in zip(cycles,cycle_vars):
+    for c, var in zip(cycles, cycle_vars):
         c_obj = Cycle(c)
         c_obj.add_edges(cfg.digraph.es)
-        c_obj.weight = failure_aware_cycle_weight(c_obj.vs, cfg.digraph,cfg.edge_success_prob)
+        c_obj.weight = failure_aware_cycle_weight(c_obj.vs, cfg.digraph, cfg.edge_success_prob)
         c_obj.grb_var = var
         cycle_list.append(c_obj)
 
@@ -420,7 +422,7 @@ def optimize_picef(cfg):
 
     if cfg.use_chains:
         matching_chains = kidney_utils.get_optimal_chains(
-                               cfg.digraph, cfg.ndds, cfg.edge_success_prob)
+            cfg.digraph, cfg.ndds, cfg.edge_success_prob)
         ndd_chain_edges = [e for ndd in cfg.ndds for e in ndd.edges if e.edge_var.x > 0.5]
     else:
         ndd_chain_edges = []
@@ -428,35 +430,35 @@ def optimize_picef(cfg):
 
     matching_edges = pair_edges + ndd_chain_edges
 
-
     if cfg.cardinality_restriction is not None:
         if len(matching_edges) > cfg.cardinality_restriction:
-            raise Warning("cardinality restriction is violated: restriction = %d edges, matching uses %d edges" % (cfg.cardinality_restriction, len(matching_edges)))
+            raise Warning("cardinality restriction is violated: restriction = %d edges, matching uses %d edges" % (
+            cfg.cardinality_restriction, len(matching_edges)))
 
     cycles_used = [c for c, v in zip(cycles, cycle_vars) if v.x > 0.5]
     cycle_obj = [c for c in cycle_list if c.grb_var.x > 0.5]
 
     sol = OptSolution(ip_model=m,
-                       cycles=cycles_used,
-                       cycle_obj = cycle_obj,
-                       chains=matching_chains,
-                       digraph=cfg.digraph,
-                       edge_success_prob=cfg.edge_success_prob,
-                       chain_restriction=cfg.chain_restriction,
-                       cycle_restriction=cfg.cycle_restriction,
-                       cycle_cap=cfg.max_chain,
-                       chain_cap=cfg.max_cycle,
-                       cardinality_restriction=cfg.cardinality_restriction)
+                      cycles=cycles_used,
+                      cycle_obj=cycle_obj,
+                      chains=matching_chains,
+                      digraph=cfg.digraph,
+                      edge_success_prob=cfg.edge_success_prob,
+                      chain_restriction=cfg.chain_restriction,
+                      cycle_restriction=cfg.cycle_restriction,
+                      cycle_cap=cfg.max_chain,
+                      chain_cap=cfg.max_cycle,
+                      cardinality_restriction=cfg.cardinality_restriction)
     sol.add_matching_edges(cfg.ndds)
     kidney_utils.check_validity(sol, cfg.digraph, cfg.ndds, cfg.max_cycle, cfg.max_chain)
-    return sol
+    return sol, matching_edges
 
 
 def max_cycles(cfg):
     '''
     Use PICEF to find the maximum number of cycles in a matching...
     '''
-    m,_, cycle_vars, _ = create_picef_model(cfg)
+    m, _, cycle_vars, _ = create_picef_model(cfg)
 
     num_cycles = quicksum(cycle_vars)
 
@@ -471,8 +473,7 @@ def max_cycles(cfg):
 
 
 def optimise_robust_picef(cfg):
-
-    m,cycles, cycle_vars, num_edges_var = create_picef_model(cfg)
+    m, cycles, cycle_vars, num_edges_var = create_picef_model(cfg)
 
     # for use later
     floor_gamma = np.floor(cfg.gamma)
@@ -481,7 +482,7 @@ def optimise_robust_picef(cfg):
 
     # add cycle vars
     cycle_list = []
-    for c,var in zip(cycles,cycle_vars):
+    for c, var in zip(cycles, cycle_vars):
         c_obj = Cycle(c)
         c_obj.add_edges(cfg.digraph.es)
         c_obj.weight = cycle_weight(c_obj.vs, cfg.digraph)
@@ -489,8 +490,6 @@ def optimise_robust_picef(cfg):
         cycle_list.append(c_obj)
 
     m.update()
-
-    # add ordering indicator variables g and discount indicators d ( d = y*g ) for NDD edges
 
     # gamma is integer
     if gamma_frac == 0:
@@ -561,8 +560,8 @@ def optimise_robust_picef(cfg):
     # ordering constraints over g
     # gamma is integer
     if gamma_frac == 0:
-        for i in range(len(e_sorted)-1):
-            m.addConstr(e_sorted[i].g_var <= e_sorted[i+1].g_var)
+        for i in range(len(e_sorted) - 1):
+            m.addConstr(e_sorted[i].g_var <= e_sorted[i + 1].g_var)
 
     # gamma is not integer
     else:
@@ -590,10 +589,10 @@ def optimise_robust_picef(cfg):
     # gamma is not integer
     else:
         h_var = m.addVar(vtype=GRB.BINARY)
-        m.addConstr(cfg.gamma - num_edges_var <= W_small*h_var )
-        m.addConstr(num_edges_var - cfg.gamma <= W_small*(1-h_var) )
-        m.addConstr(quicksum(e.dp_var for e in all_edges) == h_var * num_edges_var + (1-h_var)*ceil_gamma )
-        m.addConstr(quicksum(e.df_var for e in all_edges) == h_var * num_edges_var + (1-h_var)*floor_gamma )
+        m.addConstr(cfg.gamma - num_edges_var <= W_small * h_var)
+        m.addConstr(num_edges_var - cfg.gamma <= W_small * (1 - h_var))
+        m.addConstr(quicksum(e.dp_var for e in all_edges) == h_var * num_edges_var + (1 - h_var) * ceil_gamma)
+        m.addConstr(quicksum(e.df_var for e in all_edges) == h_var * num_edges_var + (1 - h_var) * floor_gamma)
 
     # total discount (by edge)
     # gamma is integer
@@ -603,7 +602,7 @@ def optimise_robust_picef(cfg):
     # gamma is not integer
     else:
         total_discount = quicksum((1 - gamma_frac) * e.discount * e.df_var for e in all_edges) + \
-                        quicksum(gamma_frac * e.discount * e.dp_var for e in all_edges)
+                         quicksum(gamma_frac * e.discount * e.dp_var for e in all_edges)
 
     # set a variable for the total (optimistic matching weight)
     total_weight = m.addVar(vtype=GRB.CONTINUOUS)
@@ -612,52 +611,47 @@ def optimise_robust_picef(cfg):
 
     if not cfg.use_chains:
         m.addConstr(total_weight == quicksum(failure_aware_cycle_weight(c, cfg.digraph, cfg.edge_success_prob) * var
-                            for c, var in zip(cycles, cycle_vars)))
+                                             for c, var in zip(cycles, cycle_vars)))
         obj_expr = total_weight - total_discount
     elif cfg.edge_success_prob == 1:
-        m.addConstr(total_weight == (quicksum(cycle_weight(c, cfg.digraph) * var for c, var in zip(cycles, cycle_vars)) +
-                    quicksum(e.weight * e.edge_var for ndd in cfg.ndds for e in ndd.edges) +
-                    quicksum(e.weight * var for e in cfg.digraph.es for var in e.grb_vars)))
+        m.addConstr(
+            total_weight == (quicksum(cycle_weight(c, cfg.digraph) * var for c, var in zip(cycles, cycle_vars)) +
+                             quicksum(e.weight * e.edge_var for ndd in cfg.ndds for e in ndd.edges) +
+                             quicksum(e.weight * var for e in cfg.digraph.es for var in e.grb_vars)))
         obj_expr = total_weight - total_discount
     else:
         raise Warning("not implemented")
-    #     obj_expr = (quicksum(failure_aware_cycle_weight(c, cfg.digraph, cfg.edge_success_prob) * var
-    #                          for c, var in zip(cycles, cycle_vars)) +
-    #                 quicksum(e.weight * cfg.edge_success_prob * e.edge_var
-    #                          for ndd in cfg.ndds for e in ndd.edges) +
-    #                 quicksum(e.weight * cfg.edge_success_prob ** (pos + 1) * var
-    #                          for e in cfg.digraph.es for var, pos in zip(e.grb_vars, e.grb_var_positions)))
 
     m.setObjective(obj_expr, GRB.MAXIMIZE)
 
     optimize(m)
 
-
-    if gamma_frac == 0: # gamma is integer
+    if gamma_frac == 0:  # gamma is integer
         discounted_pair_edges = [e for e in cfg.digraph.es if e.d_var.x > 0]
 
         for e in discounted_pair_edges:
             e.discount_frac = e.d_var.x
 
         if cfg.use_chains:
-            discounted_ndd_edges = [ (i_ndd, e) for i_ndd,ndd in enumerate(cfg.ndds) for e in ndd.edges if e.d_var.x > 0.0]
+            discounted_ndd_edges = [(i_ndd, e) for i_ndd, ndd in enumerate(cfg.ndds)
+                                    for e in ndd.edges if e.d_var.x > 0.0]
 
-            for _,e in discounted_ndd_edges:
+            for _, e in discounted_ndd_edges:
                 e.discount_frac = e.d_var.x
-    else: # gamma is not integer
+
+    else:  # gamma is not integer
 
         discounted_pair_edges = [e for e in cfg.digraph.es \
                                  if ((e.df_var.x > 0.0) or (e.dp_var.x > 0.0))]
 
         for e in discounted_pair_edges:
-            e.discount_frac = (1-gamma_frac) * e.df_var.x + gamma_frac * e.dp_var.x
+            e.discount_frac = (1 - gamma_frac) * e.df_var.x + gamma_frac * e.dp_var.x
 
         if cfg.use_chains:
-            discounted_ndd_edges = [(i_ndd, e) for i_ndd, ndd in enumerate(cfg.ndds) for e in ndd.edges\
+            discounted_ndd_edges = [(i_ndd, e) for i_ndd, ndd in enumerate(cfg.ndds) for e in ndd.edges \
                                     if ((e.df_var.x > 0.0) or (e.dp_var.x > 0.0))]
             for _, e in discounted_ndd_edges:
-                e.discount_frac = (1-gamma_frac) * e.df_var.x  + gamma_frac * e.dp_var.x
-
+                e.discount_frac = (1 - gamma_frac) * e.df_var.x + gamma_frac * e.dp_var.x
 
     if cfg.use_chains:
         ndd_matching_edges = [e for ndd in cfg.ndds for e in ndd.edges if e.edge_var.x > 0.5]
@@ -670,7 +664,8 @@ def optimise_robust_picef(cfg):
 
     if cfg.cardinality_restriction is not None:
         if len(matching_edges) > cfg.cardinality_restriction:
-            raise Warning("cardinality restriction is violated: restriction = %d edges, matching uses %d edges" % (cfg.cardinality_restriction, len(matching_edges)))
+            raise Warning("cardinality restriction is violated: restriction = %d edges, matching uses %d edges" % (
+            cfg.cardinality_restriction, len(matching_edges)))
 
     chains_used = kidney_utils.get_optimal_chains(cfg.digraph, cfg.ndds, cfg.edge_success_prob) if cfg.use_chains \
         else []
@@ -679,14 +674,14 @@ def optimise_robust_picef(cfg):
     cycle_obj = [c for c in cycle_list if c.grb_var.x > 0.5]
 
     sol = OptSolution(ip_model=m,
-                       cycles=cycles_used,
-                       cycle_obj=cycle_obj,
-                       chains= chains_used,
-                       digraph=cfg.digraph,
-                       edge_success_prob=cfg.edge_success_prob,
-                       gamma=cfg.gamma,
-                       robust_weight= m.objVal,
-                       optimistic_weight = total_weight.x,
+                      cycles=cycles_used,
+                      cycle_obj=cycle_obj,
+                      chains=chains_used,
+                      digraph=cfg.digraph,
+                      edge_success_prob=cfg.edge_success_prob,
+                      gamma=cfg.gamma,
+                      robust_weight=m.objVal,
+                      optimistic_weight=total_weight.x,
                       chain_restriction=cfg.chain_restriction,
                       cycle_restriction=cfg.cycle_restriction,
                       cycle_cap=cfg.max_chain,
@@ -695,7 +690,7 @@ def optimise_robust_picef(cfg):
     sol.add_matching_edges(cfg.ndds)
     kidney_utils.check_validity(sol, cfg.digraph, cfg.ndds, cfg.max_cycle, cfg.max_chain)
 
-    return sol
+    return sol, matching_edges
 
 
 def solve_edge_weight_uncertainty(cfg, max_card=None):
@@ -718,7 +713,7 @@ def solve_edge_weight_uncertainty(cfg, max_card=None):
         d_uniform = cfg.digraph.uniform_copy()
         ndds_uniform = [n.uniform_copy() for n in cfg.ndds]
         cfg_maxcard = OptConfig(d_uniform, ndds_uniform, cfg.max_cycle, cfg.max_chain, cfg.verbose,
-                                   cfg.timelimit, cfg.edge_success_prob, gamma=0)
+                                cfg.timelimit, cfg.edge_success_prob, gamma=0)
         sol_maxcard = optimize_picef(cfg_maxcard)
 
         # the number of edges in the maximum cardinality solution
@@ -737,7 +732,7 @@ def solve_edge_weight_uncertainty(cfg, max_card=None):
         sol_maxcard.max_card = 0
         return sol_maxcard
 
-    for card_restriction in range(1, max_card+1):
+    for card_restriction in range(1, max_card + 1):
 
         # solve the k-cardinality-restricted problem, with Gamma = gamma(k)
         cfg.cardinality_restriction = card_restriction
@@ -756,8 +751,8 @@ def solve_edge_weight_uncertainty(cfg, max_card=None):
             best_sol = new_sol
             best_gamma = cfg.gamma
         elif new_sol.robust_weight > best_sol.robust_weight:
-                best_sol = new_sol
-                best_gamma = cfg.gamma
+            best_sol = new_sol
+            best_gamma = cfg.gamma
 
     # return the best solution and save the best gamma value
     cfg.gamma = best_gamma
@@ -765,14 +760,88 @@ def solve_edge_weight_uncertainty(cfg, max_card=None):
     return best_sol
 
 
+# #####################################DRO###############################################################
+#
+# # Infty-ball
+#
+# ######################################################################################################
+#
+# def optimize_DROinf_picef(cfg, theta=0.1):
+#     m, cycles, cycle_vars, _ = create_picef_model(cfg)
+#
+#     # add cycle objects
+#     cycle_list = []
+#     for c, var in zip(cycles, cycle_vars):
+#         c_obj = Cycle(c)
+#         c_obj.add_edges(cfg.digraph.es)
+#         c_obj.weight = failure_aware_cycle_weight(c_obj.vs, cfg.digraph, cfg.edge_success_prob)
+#         c_obj.grb_var = var
+#         cycle_list.append(c_obj)
+#
+#     if not cfg.use_chains:  # define the weights by including the regularization terms
+#         obj_expr = quicksum(reg_failure_aware_cycle_weight(c, cfg.digraph, cfg.edge_success_prob, theta) * var
+#                             for c, var in zip(cycles, cycle_vars))
+#     elif cfg.edge_success_prob == 1:
+#         obj_expr = (quicksum(
+#             reg_failure_aware_cycle_weight(c, cfg.digraph, cfg.edge_success_prob, theta) * var for c, var in
+#             zip(cycles, cycle_vars)) +
+#                     quicksum((e.weight - theta) * e.edge_var for ndd in cfg.ndds for e in ndd.edges) +
+#                     quicksum((e.weight - theta) * var for e in cfg.digraph.es for var in e.grb_vars))
+#     else:
+#         obj_expr = (quicksum(reg_failure_aware_cycle_weight(c, cfg.digraph, cfg.edge_success_prob, theta) * var
+#                              for c, var in zip(cycles, cycle_vars)) +
+#                     quicksum((e.weight - theta) * cfg.edge_success_prob * e.edge_var
+#                              for ndd in cfg.ndds for e in ndd.edges) +
+#                     quicksum((e.weight - theta) * cfg.edge_success_prob ** (pos + 1) * var
+#                              for e in cfg.digraph.es for var, pos in zip(e.grb_vars, e.grb_var_positions)))
+#     m.setObjective(obj_expr, GRB.MAXIMIZE)
+#
+#     optimize(m)
+#
+#     pair_edges = [e for e in cfg.digraph.es if e.used_var.x > 0.5]
+#
+#     if cfg.use_chains:
+#         matching_chains = kidney_utils.get_optimal_chains(
+#             cfg.digraph, cfg.ndds, cfg.edge_success_prob)
+#         ndd_chain_edges = [e for ndd in cfg.ndds for e in ndd.edges if e.edge_var.x > 0.5]
+#     else:
+#         ndd_chain_edges = []
+#         matching_chains = []
+#
+#     matching_edges = pair_edges + ndd_chain_edges
+#
+#     if cfg.cardinality_restriction is not None:
+#         if len(matching_edges) > cfg.cardinality_restriction:
+#             raise Warning("cardinality restriction is violated: restriction = %d edges, matching uses %d edges" % (
+#                 cfg.cardinality_restriction, len(matching_edges)))
+#
+#     cycles_used = [c for c, v in zip(cycles, cycle_vars) if v.x > 0.5]
+#     cycle_obj = [c for c in cycle_list if c.grb_var.x > 0.5]
+#
+#     sol = OptSolution(ip_model=m,
+#                       cycles=cycles_used,
+#                       cycle_obj=cycle_obj,
+#                       chains=matching_chains,
+#                       digraph=cfg.digraph,
+#                       edge_success_prob=cfg.edge_success_prob,
+#                       chain_restriction=cfg.chain_restriction,
+#                       cycle_restriction=cfg.cycle_restriction,
+#                       cycle_cap=cfg.max_chain,
+#                       chain_cap=cfg.max_cycle,
+#                       cardinality_restriction=cfg.cardinality_restriction)
+#     sol.add_matching_edges(cfg.ndds)
+#     kidney_utils.check_validity(sol, cfg.digraph, cfg.ndds, cfg.max_cycle, cfg.max_chain)
+#     return sol, matching_edges
+
+
 #####################################DRO###############################################################
 
-# Infty-ball
+# SAA formulation
 
 ######################################################################################################
 
-def optimize_DROinf_picef(cfg, theta=0.1):
 
+def optimize_SAA_picef(cfg, num_weight_measurements, gamma, alpha):
     m, cycles, cycle_vars, _ = create_picef_model(cfg)
 
     # add cycle objects
@@ -784,23 +853,32 @@ def optimize_DROinf_picef(cfg, theta=0.1):
         c_obj.grb_var = var
         cycle_list.append(c_obj)
 
-    if not cfg.use_chains:  # define the weights by including the regularization terms
-        obj_expr = quicksum(reg_failure_aware_cycle_weight(c, cfg.digraph, cfg.edge_success_prob, theta) * var
-                            for c, var in zip(cycles, cycle_vars))
+    # add variables for each edge weight measurement
+    weight_vars = m.addVars(num_weight_measurements, vtype=GRB.CONTINUOUS, lb=-GRB.INFINITY, ub=GRB.INFINITY)
+    for i in range(num_weight_measurements):
+        m.addConstr(weight_vars[i] == - (quicksum(e.used_var * e.weight_list[i] for e in cfg.digraph.es) +
+                                         quicksum(e.weight_list[i] * e.edge_var for ndd in cfg.ndds for e in ndd.edges)))
+
+    # don't know what this variable is about
+    d_var = m.addVar(vtype=GRB.CONTINUOUS, lb=-GRB.INFINITY, ub=GRB.INFINITY)
+
+    # add pi variables & constraints for SAA
+    pi_vars = m.addVars(num_weight_measurements, vtype=GRB.CONTINUOUS, lb=-GRB.INFINITY, ub=GRB.INFINITY)
+    for i in range(num_weight_measurements):
+        m.addConstr(pi_vars[i] >= weight_vars[i])
+        m.addConstr(pi_vars[i] >= (1 + gamma / alpha) * weight_vars[i] - (d_var * gamma) / alpha)
+
+    # objective
+    obj = (1.0 / float(num_weight_measurements)) * quicksum(pi_vars) + gamma * d_var
+
+    m.setObjective(obj, sense=GRB.MINIMIZE)
+
+    if not cfg.use_chains:
+        raise Exception("not implemented")
     elif cfg.edge_success_prob == 1:
-        obj_expr = (quicksum(
-            reg_failure_aware_cycle_weight(c, cfg.digraph, cfg.edge_success_prob, theta) * var for c, var in
-            zip(cycles, cycle_vars)) +
-                    quicksum((e.weight - theta) * e.edge_var for ndd in cfg.ndds for e in ndd.edges) +
-                    quicksum((e.weight - theta) * var for e in cfg.digraph.es for var in e.grb_vars))
+        pass
     else:
-        obj_expr = (quicksum(reg_failure_aware_cycle_weight(c, cfg.digraph, cfg.edge_success_prob, theta) * var
-                             for c, var in zip(cycles, cycle_vars)) +
-                    quicksum((e.weight - theta) * cfg.edge_success_prob * e.edge_var
-                             for ndd in cfg.ndds for e in ndd.edges) +
-                    quicksum((e.weight - theta) * cfg.edge_success_prob ** (pos + 1) * var
-                             for e in cfg.digraph.es for var, pos in zip(e.grb_vars, e.grb_var_positions)))
-    m.setObjective(obj_expr, GRB.MAXIMIZE)
+        raise Exception("not implemented")
 
     optimize(m)
 
@@ -837,12 +915,4 @@ def optimize_DROinf_picef(cfg, theta=0.1):
                       cardinality_restriction=cfg.cardinality_restriction)
     sol.add_matching_edges(cfg.ndds)
     kidney_utils.check_validity(sol, cfg.digraph, cfg.ndds, cfg.max_cycle, cfg.max_chain)
-    return sol
-
-
-
-
-
-
-
-
+    return None, matching_edges

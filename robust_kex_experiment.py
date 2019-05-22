@@ -1,108 +1,86 @@
-"""
-Fairness experiments, varying
-- edge success probability
-- chain cap
-- fairness rule
-"""
-import argparse
-import os
-import kidney_ip
-import numpy as np
-import re
-import random
+# function for running experiments with different robust kidney exchange formulations
 
-from kidney_graph_io import get_UNOS_graphs, get_cmu_graphs
+import argparse
+import numpy as np
+
+from edge_weight_distributions import initialize_edge_weights
+from kidney_graph_io import get_unos_graphs, get_cmu_graphs
 from utils import generate_filepath
-from kidney_ip import OptConfig, optimise_robust_picef, optimize_picef
+from kidney_ip import OptConfig, optimise_robust_picef, optimize_picef, optimize_SAA_picef
 
 
 def robust_kex_experiment(args):
-    # run an experiment with edge-weight robust kidney exchange, testing the method of Ren et al. (2019) and
-    # McElfresh et al, (2018).
 
-    output_dir = args.output_dir
-    seed = args.seed
-    input_dir = args.input_dir
-    graph_type = args.graph_type
-    verbose = args.verbose
-    cycle_cap = args.cycle_cap
-    chain_cap = args.chain_cap
-    num_weight_measurements = args.num_weight_measurements
-    num_weight_realizations = args.num_weight_realizations
-    alpha_list = args.alpha_list
-    theta_list = args.theta_list
-    gamma_list = args.gamma_list
-    num_trials = args.num_trials
-    dist_type = args.dist_type
-
-    rs = np.random.RandomState(seed=seed)
+    rs = np.random.RandomState(seed=args.seed)
 
     # generate an output file
-    output_file = generate_filepath(output_dir, 'robust_kex_experiment', 'csv')
+    output_file = generate_filepath(args.output_dir, 'robust_kex_experiment', 'csv')
 
     # list of output column names
     output_columns = ['graph_name',
-                        'trial_num',
-                        'alpha',
-                        'realization_num',
-                        'cycle_cap',
-                        'chain_cap',
-                        'method',
-                        'parameter_name',
-                        'parameter_value',
-                        'realized_score']
+                      'trial_num',
+                      'alpha',
+                      'realization_num',
+                      'cycle_cap',
+                      'chain_cap',
+                      'method',
+                      'realized_score']
 
     # output file header, and write experiment parameters to the first line
     with open(output_file, 'w') as f:
         f.write(str(args) + '\n')
-        f.write((','.join(len(output_columns) * ['%15s ']) + '\n') % tuple(output_columns))
+        f.write((','.join(len(output_columns) * ['%s']) + '\n') % tuple(output_columns))
 
-    if graph_type == 'UNOS':
-        graph_generator = get_UNOS_graphs(input_dir)
-    elif graph_type == 'CMU':
-        graph_generator = get_cmu_graphs(input_dir)
+    if args.graph_type == 'unos':
+        graph_generator = get_unos_graphs(args.input_dir)
+    elif args.graph_type == 'cmu':
+        graph_generator = get_cmu_graphs(args.input_dir)
 
     # run the experiment for each graph
     for digraph, ndd_list, graph_name in graph_generator:
 
-        for i_trial in range(num_trials):
+        for i_trial in range(args.num_trials):
 
-            for alpha in alpha_list:
+            for alpha in args.alpha_list:
+
+                # store all solutions (matchings) in a dict
+                sol_dict = {}
+
                 # initialize edge types, weight function, and edge_weight_list
-                initialize_edge_weights(digraph, ndd_list, num_weight_measurements, alpha,
-                                        rs=rs,
-                                        dist_type=dist_type)
+                initialize_edge_weights(digraph, ndd_list, args.num_weight_measurements, alpha, rs, args.dist_type)
 
                 # method 1: solve the non-robust approach with *true edge means*
                 set_nominal_edge_weight(digraph, ndd_list)
-                sol_nonrobust_truemean = optimize_picef(OptConfig(digraph, ndd_list, cycle_cap, chain_cap,
-                                                         verbose=verbose))
+                sol_dict['nonrobust_truemean'] = optimize_picef(OptConfig(digraph, ndd_list, args.cycle_cap,
+                                                                          args.chain_cap,
+                                                                          verbose=args.verbose))
 
-                # method 1: solve the non-robust approach
-                # for this method we treat the *mean* of all measurements as the true edge weights
+                # method 1a: solve the non-robust approach with *sample edge means*
                 set_sample_mean_edge_weight(digraph, ndd_list)
-                sol_nonrobust_samplemean = optimize_picef(OptConfig(digraph, ndd_list, cycle_cap, chain_cap,
-                                                         verbose=verbose))
+                sol_dict['nonrobust_samplemean'] = optimize_picef(OptConfig(digraph, ndd_list, args.cycle_cap,
+                                                                            args.chain_cap,
+                                                                            verbose=args.verbose))
 
-                # method 2: solve the RO approach of McElfresh et al. (2018), assuming a symmetric edge weight distribution
-                # for this method, as with the non-robust method, we set the nominal value for each edge to be the mean of all
-                # measurements. we also set the discount value to be the difference between the mean and the *min* measurement.
-                # that is, we assume that we observe the minimum-possible edge weight in the measurements.
-                #
-                # we could improve this, by making a truthful assumption about the edge weight distribution.
+                # method 2: solve the RO approach of McElfresh et al. (2018)
                 set_RO_weight_parameters(digraph, ndd_list)
-                sol_RO_list = []
-                for gamma in gamma_list:
-                    sol_RO_list.append(optimise_robust_picef(OptConfig(digraph, ndd_list, cycle_cap, chain_cap,
-                                                 verbose=verbose,
-                                                 gamma=gamma)))
+                for gamma in args.gamma_list:
+                    sol_dict[('ro_gamma_%s' % gamma)] = optimise_robust_picef(
+                        OptConfig(digraph, ndd_list, args.cycle_cap, args.chain_cap,
+                                  verbose=args.verbose,
+                                  gamma=gamma))
 
-                # method 3: solve the DRO approach.
-                sol_DRO_list = []
-                set_sample_mean_edge_weight(digraph, ndd_list)
-                for theta in theta_list:
-                    sol_DRO_list.append(kidney_ip.optimize_DROinf_picef(OptConfig(digraph, ndd_list, cycle_cap, chain_cap,
-                                                                verbose=verbose), theta=theta))
+                # method 3: solve the DRO approach with SAA
+                for ssa_gamma in args.ssa_gamma_list:
+                    for ssa_alpha in args.ssa_alpha_list:
+                        sol_dict[('ssa_gamma_%s_alpha_%s' % (ssa_gamma, ssa_alpha))] = optimize_SAA_picef(
+                            OptConfig(digraph, ndd_list, args.cycle_cap, args.chain_cap,
+                                      verbose=args.verbose), args.num_weight_measurements, ssa_gamma, ssa_alpha)
+                # # method 3: solve the DRO approach.
+                # set_sample_mean_edge_weight(digraph, ndd_list)
+                # for theta in theta_list:
+                #     sol_dict[('dro_theta_%s' % theta )] = \
+                    #         kidney_ip.optimize_DROinf_picef(OptConfig(digraph, ndd_list, cycle_cap, chain_cap,
+                #                                                   verbose=verbose), theta=theta)
 
                 # if verbose:
                 #     print("protection level epsilon = %f" % protection_level)
@@ -114,254 +92,40 @@ def robust_kex_experiment(args):
                 #     print(sol_DRO.display())
 
                 with open(output_file, 'a') as f:
-                    for i_realization in range(num_weight_realizations):
+                    for i_realization in range(args.num_weight_realizations):
 
                         # apply a realization to each edge
                         realize_edge_weights(digraph, ndd_list, rs=rs)
 
-                        realized_nonrobust_truemean_score = sum([e.weight for e in sol_nonrobust_truemean.matching_edges])
+                        # solve for the (omniscient) optimal edge weight
+                        sol_dict['omniscient'] = optimize_picef(OptConfig(digraph,
+                                                                          ndd_list,
+                                                                          args.cycle_cap,
+                                                                          args.chain_cap,
+                                                                          verbose=args.verbose))
 
-                        write_line(f,
-                                   graph_name,
-                                   i_trial,
-                                   alpha,
-                                   i_realization,
-                                   cycle_cap,
-                                   chain_cap,
-                                   'nonrobust_truemean',
-                                   'None',
-                                   0,
-                                   realized_nonrobust_truemean_score)
+                        for sol_name, (sol, matched_edges) in sol_dict.items():
+                            score = sum([e.weight for e in matched_edges])
 
-                        realized_nonrobust_samplemean_score = sum([e.weight for e in sol_nonrobust_samplemean.matching_edges])
-
-                        write_line(f,
-                                   graph_name,
-                                   i_trial,
-                                   alpha,
-                                   i_realization,
-                                   cycle_cap,
-                                   chain_cap,
-                                   'nonrobust_samplemean',
-                                   'None',
-                                   0,
-                                   realized_nonrobust_samplemean_score)
-
-                        # find the optimal matching, given true weights
-                        sol_opt = optimize_picef(OptConfig(digraph, ndd_list, cycle_cap, chain_cap,
-                                                                 verbose=verbose))
-                        realized_optimal_score = sum([e.weight for e in sol_opt.matching_edges])
-
-                        write_line(f,
-                                   graph_name,
-                                   i_trial,
-                                   alpha,
-                                   i_realization,
-                                   cycle_cap,
-                                   chain_cap,
-                                   'optimal',
-                                   'None',
-                                   0,
-                                   realized_optimal_score)
-
-                        for sol, gamma in zip(sol_RO_list, gamma_list):
-                            score = sum([e.weight for e in sol.matching_edges])
-                            write_line(f,
-                                       graph_name,
-                                       i_trial,
-                                       alpha,
-                                       i_realization,
-                                       cycle_cap,
-                                       chain_cap,
-                                       'RO',
-                                       'gamma',
-                                       gamma,
-                                       score)
-
-                        for sol, theta in zip(sol_DRO_list, theta_list):
-                            score = sum([e.weight for e in sol.matching_edges])
-                            write_line(f,
-                                       graph_name,
-                                       i_trial,
-                                       alpha,
-                                       i_realization,
-                                       cycle_cap,
-                                       chain_cap,
-                                       'DRO',
-                                       'theta',
-                                       theta,
-                                       score)
-
-
-def write_line(f,
-               graph_name,
-               i_trial,
-               alpha,
-               i_realization,
-               cycle_cap,
-               chain_cap,
-               method,
-               parameter_name,
-               parameter_value,
-               score):
-
-    f.write((','.join(10 * ['%15s ']) + '\n') %
-        (graph_name,
-        '%d' % i_trial,
-        '%.3e' % alpha,
-        '%d' % i_realization,
-        '%d' % cycle_cap,
-        '%d' % chain_cap,
-        method,
-        parameter_name,
-        '%.4e' % parameter_value,
-        '%.4e' % score))
-
-def initialize_edge_weights(digraph, ndd_list, num_weight_measurements, alpha,
-                                rs=None,
-                                dist_type='binary'):
-    # initialize the "weight_type" of each edge, and the function draw_edge_weight
-    #
-    # set the following properties for each edge:
-    # - type : (int) the type of edge weight distribution
-    # - alpha : the fraction of edges that are random (type = 0 is deterministic)
-    # - draw_edge_weight : (function handle) take a random state and return an edge weight
-    # - edge_weight_list : a list of draws (measurements) from draw_edge_weight
-    # - dist_type : the type of edge weight distribution ('binary' or 'unos')
-    if rs is None:
-        rs = np.random.RandomState(0)
-
-    if dist_type == 'binary':
-        initialize_edge = initialize_edge_binary
-    elif dist_type == 'unos':
-        initialize_edge = initialize_edge_unos
-    elif dist_type == 'dro':
-        initialize_edge = initialize_edge_dro
-        # select alpha edges to be probabilistic (high expectation) and |E| - alpha to be deterministic (10)
-        num_edges = len(digraph.es) + sum([len(n.edges) for n in ndd_list])
-        # choose alpha edges to be probabilistic
-        prob_edges = rs.choice(num_edges, int(alpha), replace=False)
-    else:
-        raise Warning("edge distribution type not recognized")
-
-    if dist_type == 'dro':
-        edge_num = 0
-        for e in digraph.es:
-            if edge_num in prob_edges:
-                initialize_edge_dro(e, 1, num_weight_measurements, rs=rs)
-            else:
-                initialize_edge_dro(e, 0, num_weight_measurements, rs=rs)
-            edge_num += 1
-        for n in ndd_list:
-            for e in n.edges:
-                if edge_num in prob_edges:
-                    initialize_edge_dro(e, 1, num_weight_measurements, rs=rs)
-                else:
-                    initialize_edge_dro(e, 0, num_weight_measurements, rs=rs)
-                edge_num += 1
-    else:
-        for e in digraph.es:
-            initialize_edge(e, alpha, num_weight_measurements, rs=rs)
-        for n in ndd_list:
-            for e in n.edges:
-                initialize_edge(e, alpha, num_weight_measurements, rs=rs)
-
-
-def initialize_edge_binary(e, alpha, num_weight_measurements,
-                    rs=None):
-    if rs is None:
-        rs = np.random.RandomState(0)
-
-    # set a type : with probability alpha, the edge is random
-    if rs.rand() < alpha:
-        e.type = 1
-    else:
-        # deterministic edge
-        e.type = 0
-
-    e.draw_edge_weight = lambda x: edge_weight_distribution_binary(e.type, x)
-    e.weight_list = [e.draw_edge_weight(rs) for _ in range(num_weight_measurements)]
-    e.true_mean_weight = 0.5
-
-
-def initialize_edge_unos(e, alpha, num_weight_measurements,
-                    rs=None):
-    if rs is None:
-        rs = np.random.RandomState(0)
-
-    # probabilities of meeting each criteria
-    p_list = [1.0, # base points (100)
-              0.5, # exact tissue type match (200)
-              0.5, # highly sensitized (125)
-              0.5, # at least one antibody mismatch (-5)
-              0.01, # patient is <18 (100)
-              0.001, # prior organ donor (150)
-              0.5] # geographic proximity (0, 25, 50, 75)]
-
-    # weights for each criteria
-    w_list = [6, # base points (100)
-              200, # exact tissue type match (200)
-              125, # highly sensitized (125)
-              -5, # at least one antibody mismatch (-5)
-              100, # patient is <18 (100)
-              150, # prior organ donor (150)
-              75] # geographic proximity
-
-    # max edge weight is 750
-
-    # set a type : with probability alpha, the edge is random
-    if rs.rand() < alpha:
-        # probabilistic edge
-        e.type = 1
-
-        # for each criteria, draw an initial value; this will be equal to the deterministic edge weight
-        _, b_realized = sample_edge_weight_distribution_unos(rs, w_list, p_list)
-
-        # fix the bernoulli variables for the last three criteria (these should be certain)
-        p_list_fixed = np.copy(p_list)
-        p_list_fixed[4] = b_realized[4]
-        p_list_fixed[5] = b_realized[5]
-        p_list_fixed[6] = b_realized[6]
-
-        e.draw_edge_weight = lambda x: sample_edge_weight_distribution_unos(x, w_list, p_list_fixed)[0]
-        e.weight_list = [e.draw_edge_weight(rs) for _ in range(num_weight_measurements)]
-        e.true_mean_weight = np.dot(p_list_fixed, w_list)
-
-    else:
-        # deterministic edge
-        e.type = 0
-
-        # for each criteria, draw an initial value; this will be equal to the deterministic edge weight
-        fixed_weight, _ = sample_edge_weight_distribution_unos(rs, w_list, p_list)
-        e.draw_edge_weight = lambda x: fixed_weight
-        e.weight_list = [fixed_weight] * num_weight_measurements
-        e.true_mean_weight = fixed_weight
-
-
-def initialize_edge_dro(e, type, num_weight_measurements,
-                    rs=None):
-    # a toy-model distribution: select alpha (integer) number of edges to have high expectation (weight = 10 or 200 w/
-    # prob. 0.5). all other edges have weight 10.
-    # type 1 = probabilistic, type 2 = deterministic.
-    if rs is None:
-        rs = np.random.RandomState(0)
-
-    low_weight = 180
-    high_weight = 400 + 180
-
-    if type == 1:
-        e.draw_edge_weight = lambda x: x.choice([low_weight, high_weight])
-        e.weight_list = [e.draw_edge_weight(rs) for _ in range(num_weight_measurements)]
-        e.true_mean_weight = (low_weight + high_weight) / 2.0
-    elif type == 0:
-        e.draw_edge_weight = lambda x: low_weight
-        e.weight_list = [e.draw_edge_weight(rs) for _ in range(num_weight_measurements)]
-        e.true_mean_weight = low_weight
+                            f.write((','.join(8 * ['%s']) + '\n') %
+                                    (graph_name,
+                                     '%d' % i_trial,
+                                     '%.3e' % alpha,
+                                     '%d' % i_realization,
+                                     '%d' % args.cycle_cap,
+                                     '%d' % args.chain_cap,
+                                     sol_name,
+                                     '%.4e' % score))
 
 
 def set_nominal_edge_weight(digraph, ndd_list):
-    # for each edge, set the property edge.weight to be the mean of edge.weight_list
-    # this is used for the *nominal* (non-robust) approach
+    """for each edge in the digraph, and for all ndd edges for each ndd, set the property edge.weight
+     to be the property edge.true_mean_weight
+
+     Args:
+         digraph: (kidney_digraph.Graph).
+         ndd_list: (list(kidney_ndds.Ndd)).
+     """
     for e in digraph.es:
         e.weight = e.true_mean_weight
     for n in ndd_list:
@@ -370,8 +134,13 @@ def set_nominal_edge_weight(digraph, ndd_list):
 
 
 def set_sample_mean_edge_weight(digraph, ndd_list):
-    # for each edge, set the property edge.weight to be the mean of edge.weight_list
-    # this is used for the *nominal* (non-robust) approach
+    """for each edge in the digraph, and for all ndd edges for each ndd, set the property edge.weight
+    to be the mean of edge.weight_list
+
+    Args:
+        digraph: (kidney_digraph.Graph).
+        ndd_list: (list(kidney_ndds.Ndd)).
+    """
     for e in digraph.es:
         e.weight = np.mean(e.weight_list)
     for n in ndd_list:
@@ -380,10 +149,17 @@ def set_sample_mean_edge_weight(digraph, ndd_list):
 
 
 def set_RO_weight_parameters(digraph, ndd_list):
-    # for each edge, set e.weight =( max(e.weight_list) + min(e.weight_list)) / 2
-    # set discount = weight - min(e.weight_list)
+    """set the edge weight for the robust optimization approach.
+
+    for each edge, set e.weight = ( max(e.weight_list) + min(e.weight_list)) / 2
+    set discount = weight - min(e.weight_list)
+
+    Args:
+        digraph: (kidney_digraph.Graph).
+        ndd_list: (list(kidney_ndds.Ndd)).
+    """
     for e in digraph.es:
-        e.weight = (np.max(e.weight_list) + np.min(e.weight_list))/2
+        e.weight = (np.max(e.weight_list) + np.min(e.weight_list)) / 2
         e.discount = e.weight - np.min(e.weight_list)
     for n in ndd_list:
         for e in n.edges:
@@ -391,11 +167,14 @@ def set_RO_weight_parameters(digraph, ndd_list):
             e.discount = e.weight - np.min(e.weight_list)
 
 
+def realize_edge_weights(digraph, ndd_list, rs):
+    """simulate a realization of each edge weight, by drawing from a distribution and setting the property edge.weight
 
-def realize_edge_weights(digraph, ndd_list, rs=None):
-    # simulate a realization of each edge weight, by drawing from a distribution and setting the property edge.weight
-    if rs is None:
-        rs = np.random.RandomState(0)
+    Args:
+        digraph: (kidney_digraph.Graph).
+        ndd_list: (list(kidney_ndds.Ndd)).
+        rs: (numpy.random.RandomState).
+    """
 
     for e in digraph.es:
         e.weight = e.draw_edge_weight(rs)
@@ -404,57 +183,9 @@ def realize_edge_weights(digraph, ndd_list, rs=None):
             e.weight = e.draw_edge_weight(rs)
 
 
-# ---- edge weight distribution functions ----
-# each function should generate a random list of edge weights for some edge
-#
-# shared arguments:
-# - alpha \in [0,1] : the fraction of edges that are uncertain (1 - alpha)% of the edges are constant-weight
-# - num_measurements : the number of edge measurements to provide
-# all constant edges have
-
-def edge_weight_distribution_binary(type, rs):
-    # return an edge weight for a certain type of distribution
-    #
-    # type:
-    # 0 : deterministic
-    # not 0 : 0 or 1, with prob. 0.5 each
-    if type == 0:
-        return 0.5
-    else:
-        return rs.choice([0.0, 1.0], p=[0.5, 0.5], size=1)[0]
-
-def sample_edge_weight_distribution_unos(rs, w_list, p_list):
-    # return an edge weight for a unos-inspired distribution
-    #
-    # total edge distribution is:
-    # w_e ~ \sum_c p_{c} w_c
-    #
-    # each p_{c} is a bernoulli r.v.
-    b_realized = (rs.rand(len(p_list)) <= p_list).astype(int)
-    return np.dot(w_list, b_realized), b_realized
-
-# def edge_dist_binary(alpha, num_measurements,
-#                      rs=None):
-#     # return a list of constant edge weights (with prob. 1-alpha) or binary edge weights (with prob. alpha)
-#     # constant edges have weight 0.5; binary edge weights have weight 0 or 1 (each with prob. 0.5)
-#     #
-#     # inputs:
-#     # - alpha \in [0,1] : the fraction of edges that are uncertain (1 - alpha)% of the edges are constant-weight
-#     # - num_measurements : the number of weight measurements to generate
-#     # - rs : (optional) to seed all randomness
-#     if rs is None:
-#         rs = np.random.RandomState(0)
-#
-#     # generate random edge weights
-#     if rs.rand() < alpha:
-#         return rs.choice([0.0, 1.0], p=[0.5, 0.5], size=num_measurements)
-#     else:
-#         return np.array([0.5] * num_measurements)
-
-
 def main():
     # run the experiment. sample usage:
-    # >>> python robust_kex_experiment.py  --num-weight-measurements=5  --output-dir /Users/duncan/research/ --graph-type CMU --input-dir /Users/duncan/research/graphs/graphs_from_john/graphs_64
+    # >>> python robust_kex_experiment.py  --num-weight-measurements=5  --output-dir /Users/duncan/research/ --graph-type cmu --input-dir /Users/duncan/research/graphs/graphs_from_john/graphs_64
     parser = argparse.ArgumentParser()
 
     parser.add_argument('--verbose',
@@ -494,38 +225,60 @@ def main():
                         default=[1],
                         nargs="+",
                         help='list of gamma values (used only by edge-weight-robust')
-    parser.add_argument('--theta-list',
+    parser.add_argument('--ssa-alpha-list',
                         type=float,
-                        default=[0.1],
+                        default=[0.01, 0.05, 0.1],
                         nargs="+",
-                        help='list of theta values(used only by DRO')
+                        help='list of alpha values (used only by ssa-robust')
+    parser.add_argument('--ssa-gamma-list',
+                        type=float,
+                        default=[0.3, 0.5, 0.7],
+                        nargs="+",
+                        help='list of gamma values (used only by ssa-robust')
     parser.add_argument('--graph-type',
                         type=str,
-                        default='CMU',
-                        choices=['CMU', 'UNOS'],
-                        help='type of exchange graphs: CMU format or UNOS format')
+                        default='cmu',
+                        choices=['cmu', 'unos'],
+                        help='type of exchange graphs: cmu format or unos format')
     parser.add_argument('--dist-type',
                         type=str,
                         default='unos',
                         choices=['unos', 'binary', 'dro'],
-                        help='type of edge weight distribution: unos | binary | dro')
+                        help='type of edge weight distribution')
     parser.add_argument('--input-dir',
                         type=str,
                         default=None,
-                        help='input directory, containing exchange graph files (in either CMU or UNOS format)')
+                        help='input directory, containing exchange graph files (in either cmu or unos format)')
     parser.add_argument('--output-dir',
                         type=str,
                         default=None,
                         help='output directory, where an output csv will be written')
+    parser.add_argument('--DEBUG',
+                        action='store_true',
+                        help='if set, use a fixed arg string for debugging. otherwise, parse args.',
+                        default=False)
 
     args = parser.parse_args()
 
-    # UNCOMMENT FOR TESTING ARGPARSE / DEBUGGING
-    # arg_string = "--num-weight-measurements=3 --dist-type=dro --gamma-list 1 5 10 15 --theta-list 50 100 150 --alpha-list 20 --output-dir /Users/duncan/research/DistRobustKex_output/debug --graph-type CMU --input-dir /Users/duncan/research/example_graphs"
-    # arg_string = "--num-weight-measurements=3 --dist-type=binary --gamma-list 1 5 10 15 --theta-list 0.0 50 100 150 200 --alpha-list 0.5 0.9  --output-dir /Users/duncan/research/DistRobustKex_output/debug --graph-type CMU --input-dir /Users/duncan/research/graphs/graphs_from_john/graphs_64"
-    # args = parser.parse_args(arg_string.split())
+    if args.DEBUG:
+        # fixed set of parameters, for debugging:
+        arg_str = '--num-weight-measurements 3'
+        arg_str += ' --dist-type unos'
+        arg_str += ' --alpha-list 1.0'
+        arg_str += ' --num-weight-realizations 3'
+        arg_str += ' --ssa-alpha-list 0.5'
+        arg_str += ' --ssa-gamma-list 5'
+        arg_str += ' --gamma-list 5'
+        arg_str += ' --output-dir /Users/duncan/research/DistRobustKidneyExchange_output/debug'
+        arg_str += ' --graph-type cmu'
+        arg_str += ' --input-dir /Users/duncan/research/graphs/graphs_from_john/graphs_64'
 
-    robust_kex_experiment(args)
+        args_fixed = parser.parse_args(arg_str.split())
+        robust_kex_experiment(args_fixed)
+
+    else:
+        args = parser.parse_args()
+        robust_kex_experiment(args)
 
 
 if __name__ == "__main__":
