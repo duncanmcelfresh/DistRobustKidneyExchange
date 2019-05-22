@@ -294,15 +294,17 @@ def initialize_edge_unos(e, alpha, num_weight_measurements,
               0.5, # exact tissue type match (200)
               0.5, # highly sensitized (125)
               0.5, # at least one antibody mismatch (-5)
-              0.01, # patient is <18 (100)
-              0.001, # prior organ donor (150)
+              0.3, # new category
+              0.3, # patient is <18 (100)
+              0.3, # prior organ donor (150)
               0.5] # geographic proximity (0, 25, 50, 75)]
 
     # weights for each criteria
-    w_list = [6, # base points (100)
+    w_list = [1, # base points (100)
               200, # exact tissue type match (200)
               125, # highly sensitized (125)
-              -5, # at least one antibody mismatch (-5)
+              100, # at least one antibody mismatch (-5)
+              300, # new category
               100, # patient is <18 (100)
               150, # prior organ donor (150)
               75] # geographic proximity
@@ -319,9 +321,9 @@ def initialize_edge_unos(e, alpha, num_weight_measurements,
 
         # fix the bernoulli variables for the last three criteria (these should be certain)
         p_list_fixed = np.copy(p_list)
-        p_list_fixed[4] = b_realized[4]
         p_list_fixed[5] = b_realized[5]
         p_list_fixed[6] = b_realized[6]
+        p_list_fixed[7] = b_realized[7]
 
         e.draw_edge_weight = lambda x: sample_edge_weight_distribution_unos(x, w_list, p_list_fixed)[0]
         e.weight_list = [e.draw_edge_weight(rs) for _ in range(num_weight_measurements)]
