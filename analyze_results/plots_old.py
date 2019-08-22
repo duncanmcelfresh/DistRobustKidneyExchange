@@ -9,10 +9,7 @@ import matplotlib.pyplot as plt
 # output_file = '/Users/duncan/research/DistRobustKex_output/robust_kex_experiment_20190521_143056.csv'
 # output_file = '/Users/duncan/research/DistRobustKex_output/debug/robust_kex_experiment_20190522_103601.csv'
 # output_file = '/Users/duncan/research/DistRobustKex_output/binary_graphs64.csv'
-# output_file = '/Users/duncan/research/DistRobustKex_output/robust_kex_experiment_20190522_121656.csv'
-output_file = '/Users/duncan/research/DistRobustKex_output/robust_kex_experiment_20190522_140213.csv'
-# output_file = '/Users/duncan/research/DistRobustKex_output/robust_kex_experiment_20190522_160843.csv'
-#
+
 
 df = pd.read_csv(output_file, skiprows=1)
 
@@ -126,8 +123,8 @@ param = 'relative_opt_gap'
 
 # print('alpha values: %s' % str(df_clean['alpha'].unique()))
 
-df_plot = df_clean[df_clean['alpha'] == 0.3]
-# df_plot = df_clean[(df_clean['alpha'] == 20) & (df_clean['graph_name'] == graph_names[graph_num])]
+# df_plot = df_clean[df_clean['alpha'] == 20]
+df_plot = df_clean[(df_clean['alpha'] == 20) & (df_clean['graph_name'] == graph_names[graph_num])]
 
 fig, axs = plt.subplots(1, 5, figsize=(12, 3), sharey=True)
 
