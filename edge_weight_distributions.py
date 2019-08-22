@@ -44,35 +44,21 @@ def initialize_edge_weights(digraph, ndd_list, num_weight_measurements, alpha, r
         dist_type: (str). edge distribution type. either "unos", "binary", or "dro"
     """
 
-    assert dist_type in ['binary', 'unos']
+    assert dist_type in ['binary', 'unos', 'lkdpi']
 
     if dist_type == 'binary':
         initialize_edge = initialize_edge_binary
     elif dist_type == 'unos':
         initialize_edge = initialize_edge_unos
-    # elif dist_type == 'dro':
-    #     initialize_edge = initialize_edge_dro
-    #     # select alpha edges to be probabilistic (high expectation) and |E| - alpha to be deterministic (10)
-    #     num_edges = len(digraph.es) + sum([len(n.edges) for n in ndd_list])
-    #     # choose alpha edges to be probabilistic
-    #     prob_edges = rs.choice(num_edges, int(alpha), replace=False)
+    elif dist_type == 'lkdpi':
+        initialize_edge = initialize_edge_lkdpi
 
-    # if dist_type == 'dro':
-    #     edge_num = 0
-    #     for e in digraph.es:
-    #         if edge_num in prob_edges:
-    #             initialize_edge_dro(e, 1, num_weight_measurements, rs=rs)
-    #         else:
-    #             initialize_edge_dro(e, 0, num_weight_measurements, rs=rs)
-    #         edge_num += 1
-    #     for n in ndd_list:
-    #         for e in n.edges:
-    #             if edge_num in prob_edges:
-    #                 initialize_edge_dro(e, 1, num_weight_measurements, rs=rs)
-    #             else:
-    #                 initialize_edge_dro(e, 0, num_weight_measurements, rs=rs)
-    #             edge_num += 1
-    # else:
+        # initiate a fixed lkdpi for each edge
+        for e in digraph.es:
+            initial_lkdpi(e, rs)
+        for n in ndd_list:
+            for e in n.edges:
+                initial_lkdpi(e, rs)
 
     for e in digraph.es:
         initialize_edge(e, alpha, num_weight_measurements, rs)
@@ -186,19 +172,11 @@ def initialize_edge_unos(e, alpha, num_weight_measurements, rs):
         e.true_mean_weight = fixed_weight
 
 
-def initialize_edge_dro(e, type, num_weight_measurements, rs):
-    # a toy-model distribution: select alpha (integer) number of edges to have high expectation (weight = 10 or 200 w/
-    # prob. 0.5). all other edges have weight 10.
-    # type 1 = probabilistic, type 2 = deterministic.
+def initial_lkdpi(e, rs):
+    e.lkdpi = rs.normal(37.1506024096, 22.2170610307)
 
-    low_weight = 180
-    high_weight = 400 + 180
 
-    if type == 1:
-        e.draw_edge_weight = lambda x: x.choice([low_weight, high_weight])
-        e.weight_list = [e.draw_edge_weight(rs) for _ in range(num_weight_measurements)]
-        e.true_mean_weight = (low_weight + high_weight) / 2.0
-    elif type == 0:
-        e.draw_edge_weight = lambda x: low_weight
-        e.weight_list = [e.draw_edge_weight(rs) for _ in range(num_weight_measurements)]
-        e.true_mean_weight = low_weight
+def initialize_edge_lkdpi(e, type, num_weight_measurements, rs):
+    e.true_mean_weight = 14.78 * np.exp(-0.01239 * e.lkdpi)
+    e.draw_edge_weight = lambda x: x.exponential(e.true_mean_weight)
+    e.weight_list = [e.draw_edge_weight(rs) for _ in range(num_weight_measurements)]

@@ -13,6 +13,9 @@ def robust_kex_experiment(args):
 
     rs = np.random.RandomState(seed=args.seed)
 
+    if not any([args.use_truemean, args.use_samplemean, args.use_saa, args.use_ro]):
+        raise Exception("at least one matching method must be used")
+
     # generate an output file
     output_file = generate_filepath(args.output_dir, 'robust_kex_experiment', 'csv')
 
@@ -39,6 +42,8 @@ def robust_kex_experiment(args):
     # run the experiment for each graph
     for digraph, ndd_list, graph_name in graph_generator:
 
+        print("running tests for graph: %s" % graph_name)
+
         for i_trial in range(args.num_trials):
 
             for alpha in args.alpha_list:
@@ -51,30 +56,34 @@ def robust_kex_experiment(args):
 
                 # method 1: solve the non-robust approach with *true edge means*
                 set_nominal_edge_weight(digraph, ndd_list)
-                sol_dict['nonrobust_truemean'] = optimize_picef(OptConfig(digraph, ndd_list, args.cycle_cap,
-                                                                          args.chain_cap,
-                                                                          verbose=args.verbose))
+                if args.use_truemean:
+                    sol_dict['nonrobust_truemean'] = optimize_picef(OptConfig(digraph, ndd_list, args.cycle_cap,
+                                                                              args.chain_cap,
+                                                                              verbose=args.verbose))
 
                 # method 1a: solve the non-robust approach with *sample edge means*
-                set_sample_mean_edge_weight(digraph, ndd_list)
-                sol_dict['nonrobust_samplemean'] = optimize_picef(OptConfig(digraph, ndd_list, args.cycle_cap,
-                                                                            args.chain_cap,
-                                                                            verbose=args.verbose))
+                if args.use_samplemean:
+                    set_sample_mean_edge_weight(digraph, ndd_list)
+                    sol_dict['nonrobust_samplemean'] = optimize_picef(OptConfig(digraph, ndd_list, args.cycle_cap,
+                                                                                args.chain_cap,
+                                                                                verbose=args.verbose))
 
                 # method 2: solve the RO approach of McElfresh et al. (2018)
-                set_RO_weight_parameters(digraph, ndd_list)
-                for gamma in args.gamma_list:
-                    sol_dict[('ro_gamma_%s' % gamma)] = optimise_robust_picef(
-                        OptConfig(digraph, ndd_list, args.cycle_cap, args.chain_cap,
-                                  verbose=args.verbose,
-                                  gamma=gamma))
+                if args.use_ro:
+                    set_RO_weight_parameters(digraph, ndd_list)
+                    for gamma in args.gamma_list:
+                        sol_dict[('ro_gamma_%s' % gamma)] = optimise_robust_picef(
+                            OptConfig(digraph, ndd_list, args.cycle_cap, args.chain_cap,
+                                      verbose=args.verbose,
+                                      gamma=gamma))
 
                 # method 3: solve the DRO approach with SAA
-                for ssa_gamma in args.ssa_gamma_list:
-                    for ssa_alpha in args.ssa_alpha_list:
-                        sol_dict[('ssa_gamma_%s_alpha_%s' % (ssa_gamma, ssa_alpha))] = optimize_SAA_picef(
-                            OptConfig(digraph, ndd_list, args.cycle_cap, args.chain_cap,
-                                      verbose=args.verbose), args.num_weight_measurements, ssa_gamma, ssa_alpha)
+                if args.use_saa:
+                    for ssa_gamma in args.ssa_gamma_list:
+                        for ssa_alpha in args.ssa_alpha_list:
+                            sol_dict[('ssa_gamma_%s_alpha_%s' % (ssa_gamma, ssa_alpha))] = optimize_SAA_picef(
+                                OptConfig(digraph, ndd_list, args.cycle_cap, args.chain_cap,
+                                          verbose=args.verbose), args.num_weight_measurements, ssa_gamma, ssa_alpha)
                 # # method 3: solve the DRO approach.
                 # set_sample_mean_edge_weight(digraph, ndd_list)
                 # for theta in theta_list:
@@ -97,12 +106,13 @@ def robust_kex_experiment(args):
                         # apply a realization to each edge
                         realize_edge_weights(digraph, ndd_list, rs=rs)
 
-                        # solve for the (omniscient) optimal edge weight
-                        sol_dict['omniscient'] = optimize_picef(OptConfig(digraph,
-                                                                          ndd_list,
-                                                                          args.cycle_cap,
-                                                                          args.chain_cap,
-                                                                          verbose=args.verbose))
+                        if args.use_omniscient:
+                            # solve for the (omniscient) optimal edge weight
+                            sol_dict['omniscient'] = optimize_picef(OptConfig(digraph,
+                                                                              ndd_list,
+                                                                              args.cycle_cap,
+                                                                              args.chain_cap,
+                                                                              verbose=args.verbose))
 
                         for sol_name, (sol, matched_edges) in sol_dict.items():
                             score = sum([e.weight for e in matched_edges])
@@ -243,7 +253,7 @@ def main():
     parser.add_argument('--dist-type',
                         type=str,
                         default='unos',
-                        choices=['unos', 'binary', 'dro'],
+                        choices=['unos', 'binary', 'lkdpi'],
                         help='type of edge weight distribution')
     parser.add_argument('--input-dir',
                         type=str,
@@ -253,6 +263,26 @@ def main():
                         type=str,
                         default=None,
                         help='output directory, where an output csv will be written')
+    parser.add_argument('--use-omniscient',
+                        action='store_true',
+                        help='if set, calculate the omniscient max-weight matching for each realization.',
+                        default=False)
+    parser.add_argument('--use-ro',
+                        action='store_true',
+                        help='if set, calculate the RO optimal matching (McElfresh 2019).',
+                        default=False)
+    parser.add_argument('--use-saa',
+                        action='store_true',
+                        help='if set, calculate the SAA-CVar optimal matching (Ke 2020).',
+                        default=False)
+    parser.add_argument('--use-samplemean',
+                        action='store_true',
+                        help='if set, use the non-robust with the true mean edge weight.',
+                        default=False)
+    parser.add_argument('--use-truemean',
+                        action='store_true',
+                        help='if set, use the non-robust with true mean edge weight.',
+                        default=False)
     parser.add_argument('--DEBUG',
                         action='store_true',
                         help='if set, use a fixed arg string for debugging. otherwise, parse args.',
@@ -262,12 +292,15 @@ def main():
 
     if args.DEBUG:
         # fixed set of parameters, for debugging:
-        arg_str = '--num-weight-measurements 3'
-        arg_str += ' --dist-type unos'
+        arg_str = '--num-weight-measurements 2000'
+        arg_str += ' --use-samplemean'
+        arg_str += ' --use-saa'
+        arg_str += ' --use-ro'
+        arg_str += ' --dist-type lkdpi'
         arg_str += ' --alpha-list 1.0'
-        arg_str += ' --num-weight-realizations 3'
-        arg_str += ' --ssa-alpha-list 0.5'
-        arg_str += ' --ssa-gamma-list 5'
+        arg_str += ' --num-weight-realizations 500'
+        arg_str += ' --ssa-alpha-list 0.2'
+        arg_str += ' --ssa-gamma-list 0 1 5 10 20'
         arg_str += ' --gamma-list 5'
         arg_str += ' --output-dir /Users/duncan/research/DistRobustKidneyExchange_output/debug'
         arg_str += ' --graph-type cmu'

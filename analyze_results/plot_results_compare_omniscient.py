@@ -7,6 +7,8 @@ import matplotlib.pyplot as plt
 # test file (3 realizations)
 output_file = '/Users/duncan/research/DistRobustKidneyExchange_output/debug/robust_kex_experiment_20190821_171748.csv'
 
+# results with 100 samples - alpha = 1.0
+output_file = '/Users/duncan/research/DistRobustKidneyExchange_output/robust_kex_experiment_20190821_204305.csv'
 df = pd.read_csv(output_file, skiprows=1)
 
 # strip whitespace from cols
