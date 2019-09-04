@@ -23,7 +23,17 @@ def lower_20pct_trimmed_mean(arr):
 # output_file = '/Users/duncan/research/DistRobustKidneyExchange_output/robust_unos.csv'
 
 # new results using lkdpi edge weights
-output_file = '/Users/duncan/research/DistRobustKidneyExchange_output/robust_lkdpi.csv'
+# output_file = '/Users/duncan/research/DistRobustKidneyExchange_output/robust_lkdpi.csv'
+
+# new results using lkdpi edge weights & 2k measurements per edge
+# output_file = '/Users/duncan/research/DistRobustKidneyExchange_output/robust_lkdpi_2k_measurements.csv'
+
+# # # new results with lkdpi and 128-node graphs, N=100 measurements per edge (PARTIAL
+# output_file = '/Users/duncan/research/DistRobustKidneyExchange_output/debug/robust_kex_experiment_20190904_130132.csv'
+
+# new results with lkdpi and 128-node graphs, N=200 measurements per edge (PARTIAL)
+output_file = '/Users/duncan/research/DistRobustKidneyExchange_output/lkdpi_128_partial.csv'
+
 
 # results
 df = pd.read_csv(output_file, skiprows=1)
@@ -76,13 +86,19 @@ df_clean['mean_pct_diff'] = (df_clean['mean'] - df_clean['baseline_mean']) / df_
 df_clean['20pct_pct_diff'] = (df_clean['lower_20pct_trimmed_mean'] - df_clean['baseline_lower_20pct_trimmed_mean']) / \
                              df_clean['baseline_lower_20pct_trimmed_mean']
 
-plot_field = 'min_pct_diff'
+plot_field = '20pct_pct_diff'
+# plot_field = 'mean_pct_diff'
+
+remove_zeros = False
 
 # create three subplots
 f, (ax1, ax2, ax3) = plt.subplots(1, 3, sharey=True)
 
 # --- gamma - RO ---
-df_ro = df_clean[df_clean['method_base'] == 'ro']
+if remove_zeros:
+    df_ro = df_clean[(df_clean['method_base'] == 'ro') & (df_clean[plot_field] != 0.0)]
+else:
+    df_ro = df_clean[df_clean['method_base'] == 'ro']
 
 ax_ro = sns.boxplot(x='ro_gamma', y=plot_field, data=df_ro, ax=ax1)
 
@@ -94,6 +110,38 @@ df_nonrobust.loc[df_nonrobust['method_base'].str.contains('true'), ['mean_type']
 ax_nonrobust = sns.boxplot(x='mean_type', y=plot_field, data=df_nonrobust, ax=ax2)
 
 # --- gamma - SSA ---
-df_ssa = df_clean[(df_clean['method_base'] == 'ssa')]
+if remove_zeros:
+    df_ssa = df_clean[(df_clean['method_base'] == 'ssa') & (df_clean[plot_field] != 0.0)]
+else:
+    df_ssa = df_clean[(df_clean['method_base'] == 'ssa')]
 
 ax_ssa = sns.boxplot(x='ssa_gamma', y=plot_field, data=df_ssa, ax=ax3)
+
+# --- make plots for individual kex graphs ---
+
+uid_list = df_clean['uid'].unique()
+
+uid = uid_list[19]
+print('uid: %s' % str(uid))
+
+# create three subplots
+f, (ax1, ax2, ax3) = plt.subplots(1, 3, sharey=True)
+
+# --- gamma - RO ---
+df_ro = df[(df['method_base'] == 'ro') & (df['uid'] == uid)]
+
+ax_ro = sns.boxplot(x='ro_gamma', y='realized_score', data=df_ro, ax=ax1)
+
+# --- nonrobust ---
+df_nonrobust = df.loc[df['method_base'].str.contains('nonrobust') & (df['uid'] == uid)]
+df_nonrobust['mean_type'] = 'sample mean'
+df_nonrobust.loc[df_nonrobust['method_base'].str.contains('true'), ['mean_type']] = 'true mean'
+
+ax_nonrobust = sns.boxplot(x='mean_type', y='realized_score', data=df_nonrobust, ax=ax2)
+
+# --- gamma - SSA ---
+df_ssa = df[(df['method_base'] == 'ssa') & (df['uid'] == uid)]
+
+ax_ssa = sns.boxplot(x='ssa_gamma', y='realized_score', data=df_ssa, ax=ax3)
+
+plt.title(uid[0])

@@ -292,7 +292,7 @@ def main():
 
     if args.DEBUG:
         # fixed set of parameters, for debugging:
-        arg_str = '--num-weight-measurements 2000'
+        arg_str = '--num-weight-measurements 100'
         arg_str += ' --use-samplemean'
         arg_str += ' --use-saa'
         arg_str += ' --use-ro'
@@ -300,11 +300,11 @@ def main():
         arg_str += ' --alpha-list 1.0'
         arg_str += ' --num-weight-realizations 500'
         arg_str += ' --ssa-alpha-list 0.2'
-        arg_str += ' --ssa-gamma-list 0 1 5 10 20'
+        arg_str += ' --ssa-gamma-list 0 0.1 1 5 10 100'
         arg_str += ' --gamma-list 5'
         arg_str += ' --output-dir /Users/duncan/research/DistRobustKidneyExchange_output/debug'
         arg_str += ' --graph-type cmu'
-        arg_str += ' --input-dir /Users/duncan/research/graphs/graphs_from_john/graphs_64'
+        arg_str += ' --input-dir /Users/duncan/research/graphs/graphs_from_john/graphs_128'
 
         args_fixed = parser.parse_args(arg_str.split())
         robust_kex_experiment(args_fixed)

@@ -55,10 +55,13 @@ def initialize_edge_weights(digraph, ndd_list, num_weight_measurements, alpha, r
 
         # initiate a fixed lkdpi for each edge
         for e in digraph.es:
-            initial_lkdpi(e, rs)
+            if not hasattr(e.src, 'lkdpi'):
+                initial_lkdpi(e.src, rs)
+            e.lkdpi = e.src.lkdpi
         for n in ndd_list:
+            initial_lkdpi(n, rs)
             for e in n.edges:
-                initial_lkdpi(e, rs)
+                e.lkdpi = n.lkdpi
 
     for e in digraph.es:
         initialize_edge(e, alpha, num_weight_measurements, rs)
@@ -172,8 +175,8 @@ def initialize_edge_unos(e, alpha, num_weight_measurements, rs):
         e.true_mean_weight = fixed_weight
 
 
-def initial_lkdpi(e, rs):
-    e.lkdpi = rs.normal(37.1506024096, 22.2170610307)
+def initial_lkdpi(x, rs):
+    x.lkdpi = rs.normal(37.1506024096, 22.2170610307)
 
 
 def initialize_edge_lkdpi(e, type, num_weight_measurements, rs):
