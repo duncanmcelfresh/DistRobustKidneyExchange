@@ -857,9 +857,10 @@ def optimize_SAA_picef(cfg, num_weight_measurements, gamma, alpha):
     weight_vars = m.addVars(num_weight_measurements, vtype=GRB.CONTINUOUS, lb=-GRB.INFINITY, ub=GRB.INFINITY)
     for i in range(num_weight_measurements):
         m.addConstr(weight_vars[i] == - (quicksum(e.used_var * e.weight_list[i] for e in cfg.digraph.es) +
-                                         quicksum(e.weight_list[i] * e.edge_var for ndd in cfg.ndds for e in ndd.edges)))
+                                         quicksum(
+                                             e.weight_list[i] * e.edge_var for ndd in cfg.ndds for e in ndd.edges)))
 
-    # don't know what this variable is about
+    # auxiliary variable
     d_var = m.addVar(vtype=GRB.CONTINUOUS, lb=-GRB.INFINITY, ub=GRB.INFINITY)
 
     # add pi variables & constraints for SAA
@@ -898,6 +899,169 @@ def optimize_SAA_picef(cfg, num_weight_measurements, gamma, alpha):
         if len(matching_edges) > cfg.cardinality_restriction:
             raise Warning("cardinality restriction is violated: restriction = %d edges, matching uses %d edges" % (
             cfg.cardinality_restriction, len(matching_edges)))
+
+    cycles_used = [c for c, v in zip(cycles, cycle_vars) if v.x > 0.5]
+    cycle_obj = [c for c in cycle_list if c.grb_var.x > 0.5]
+
+    sol = OptSolution(ip_model=m,
+                      cycles=cycles_used,
+                      cycle_obj=cycle_obj,
+                      chains=matching_chains,
+                      digraph=cfg.digraph,
+                      edge_success_prob=cfg.edge_success_prob,
+                      chain_restriction=cfg.chain_restriction,
+                      cycle_restriction=cfg.cycle_restriction,
+                      cycle_cap=cfg.max_chain,
+                      chain_cap=cfg.max_cycle,
+                      cardinality_restriction=cfg.cardinality_restriction)
+    sol.add_matching_edges(cfg.ndds)
+    kidney_utils.check_validity(sol, cfg.digraph, cfg.ndds, cfg.max_cycle, cfg.max_chain)
+    return None, matching_edges
+
+
+#####################################DRO###############################################################
+
+# DRO-SAA formulation
+
+######################################################################################################
+
+
+def optimize_DRO_SAA_picef(cfg, num_weight_measurements, gamma, alpha, theta, w_min, w_max):
+    """Solve the DRO-SAA formulation of (Ren, 2020)
+    
+    Arguments:
+        cfg: (OptConfig object)
+        num_weight_measurements: (int). number of weight measurements associated with each edge
+        gamma: (float). parameter balancing between a pure CVar objective (gamma->infinity) and a pure max-expectation
+            objective (gamma=0)
+        alpha: (float). CVar protection level, should be on [0, 1]
+        theta: prediction of distance between assumed distribution and true distribution
+        w_min: (float). assumed minimum edge weight of unknown distribution 
+        w_max: (float). assumed maximum edge weight of unknown distribution 
+    """
+
+    m, cycles, cycle_vars, _ = create_picef_model(cfg)
+
+    # add cycle objects
+    cycle_list = []
+    for c, var in zip(cycles, cycle_vars):
+        c_obj = Cycle(c)
+        c_obj.add_edges(cfg.digraph.es)
+        c_obj.weight = failure_aware_cycle_weight(c_obj.vs, cfg.digraph, cfg.edge_success_prob)
+        c_obj.grb_var = var
+        cycle_list.append(c_obj)
+
+    # add variables for each edge weight measurement
+    weight_vars = m.addVars(num_weight_measurements, vtype=GRB.CONTINUOUS, lb=-GRB.INFINITY, ub=GRB.INFINITY)
+    for i in range(num_weight_measurements):
+        m.addConstr(weight_vars[i] == - (quicksum(e.used_var * e.weight_list[i] for e in cfg.digraph.es) +
+                                         quicksum(
+                                             e.weight_list[i] * e.edge_var for ndd in cfg.ndds for e in ndd.edges)))
+
+    # auxiliary variables
+    d_var = m.addVar(vtype=GRB.CONTINUOUS, lb=-GRB.INFINITY, ub=GRB.INFINITY, name='d')
+    lam_var = m.addVar(vtype=GRB.CONTINUOUS, lb=-GRB.INFINITY, ub=GRB.INFINITY, name='lambda')
+    s_vars = m.addVars(num_weight_measurements, vtype=GRB.CONTINUOUS, lb=-GRB.INFINITY, ub=GRB.INFINITY, name='s')
+
+    # add eta and mu vars for each edge
+    for e in cfg.digraph.es:
+        e.eta_vars = m.addVars(num_weight_measurements, 2, vtype=GRB.CONTINUOUS, lb=0.0, ub=GRB.INFINITY, name='eta')
+        e.mu_vars = m.addVars(num_weight_measurements, 2, vtype=GRB.CONTINUOUS, lb=0.0, ub=GRB.INFINITY, name='mu')
+    for n in cfg.ndds:
+        for e in n.edges:
+            # also add the used_var here, for convenience
+            e.used_var = e.edge_var
+            e.eta_vars = m.addVars(num_weight_measurements, 2, vtype=GRB.CONTINUOUS, lb=0.0, ub=GRB.INFINITY,
+                                   name='eta')
+            e.mu_vars = m.addVars(num_weight_measurements, 2, vtype=GRB.CONTINUOUS, lb=0.0, ub=GRB.INFINITY,
+                                  name='mu')
+
+    # add variables for each edge weight measurement
+    weight_vars = m.addVars(num_weight_measurements, vtype=GRB.CONTINUOUS, lb=-GRB.INFINITY, ub=GRB.INFINITY)
+    for i in range(num_weight_measurements):
+        m.addConstr(weight_vars[i] == - (quicksum(e.used_var * e.weight_list[i] for e in cfg.digraph.es) +
+                                         quicksum(
+                                             e.weight_list[i] * e.edge_var for ndd in cfg.ndds for e in ndd.edges)))
+
+    b1 = 0
+    b2 = - d_var * gamma / alpha
+
+    # construct a list of all edges, for convenience
+    e_list = cfg.digraph.es
+    for n in cfg.ndds:
+        e_list.extend(n.edges)
+
+    # add main constraints
+    for i_measurement in range(num_weight_measurements):
+        # k = 1
+        edge_sum_1a = quicksum([e.eta_vars[i_measurement, 0] * (w_max - e.weight_list[i_measurement])
+                                for e in e_list])
+        edge_sum_1b = quicksum([e.mu_vars[i_measurement, 0] * (e.weight_list[i_measurement] - w_min)
+                                for e in e_list])
+        m.addConstr(b1 + weight_vars[i_measurement] + edge_sum_1a + edge_sum_1b <= s_vars[i_measurement],
+                    name=("s_constr_k1_i%d" % i_measurement))
+
+        # k = 2
+        edge_sum_2a = quicksum([e.eta_vars[i_measurement, 1] * (w_max - e.weight_list[i_measurement])
+                                for e in e_list])
+        edge_sum_2b = quicksum([e.mu_vars[i_measurement, 1] * (e.weight_list[i_measurement] - w_min)
+                                for e in e_list])
+        m.addConstr(b2 + (1 + gamma / alpha) * weight_vars[i_measurement] + edge_sum_2a + edge_sum_2b <=
+                    s_vars[i_measurement],
+                    name=("s_constr__k2_i%d" % i_measurement))
+
+        # now for the norm sum (using the 1-norm)
+        # for each edge, get |\eta_ik - \mu_ik  - a_k|. then sum all of these to obtain the 1-norm
+        e_norm_plus_vars_k1 = m.addVars(len(e_list), vtype=GRB.CONTINUOUS, lb=0.0, ub=GRB.INFINITY,
+                                        name=("e_norm_plus_k1_i%d" % i_measurement))
+        e_norm_minus_vars_k1 = m.addVars(len(e_list), vtype=GRB.CONTINUOUS, lb=0.0, ub=GRB.INFINITY,
+                                         name=("e_norm_minus_k1_i%d" % i_measurement))
+        e_norm_plus_vars_k2 = m.addVars(len(e_list), vtype=GRB.CONTINUOUS, lb=0.0, ub=GRB.INFINITY,
+                                        name=("e_norm_plus_k2_i%d" % i_measurement))
+        e_norm_minus_vars_k2 = m.addVars(len(e_list), vtype=GRB.CONTINUOUS, lb=0.0, ub=GRB.INFINITY,
+                                         name=("e_norm_minus_k2_i%d" % i_measurement))
+        for i_e, e in enumerate(e_list):
+            # k = 1
+            m.addConstr(
+                e_norm_plus_vars_k1[i_e] - e_norm_minus_vars_k1[i_e] == e.eta_vars[i_measurement, 0] - e.mu_vars[
+                    i_measurement, 0] + e.used_var)
+            m.addConstr(quicksum(e_norm_plus_vars_k1) + quicksum(e_norm_minus_vars_k1) <= lam_var)
+            # k = 2
+            m.addConstr(
+                e_norm_plus_vars_k2[i_e] - e_norm_minus_vars_k2[i_e] == e.eta_vars[i_measurement, 1] - e.mu_vars[
+                    i_measurement, 1] + e.used_var)
+            m.addConstr(quicksum(e_norm_plus_vars_k2) + quicksum(e_norm_minus_vars_k2) <= lam_var)
+
+    # objective
+    obj = lam_var * theta + (1.0 / float(num_weight_measurements)) * quicksum(s_vars) + gamma * d_var
+
+    m.setObjective(obj, sense=GRB.MINIMIZE)
+
+    if not cfg.use_chains:
+        raise Exception("not implemented")
+    elif cfg.edge_success_prob == 1:
+        pass
+    else:
+        raise Exception("not implemented")
+
+    optimize(m)
+
+    pair_edges = [e for e in cfg.digraph.es if e.used_var.x > 0.5]
+
+    if cfg.use_chains:
+        matching_chains = kidney_utils.get_optimal_chains(
+            cfg.digraph, cfg.ndds, cfg.edge_success_prob)
+        ndd_chain_edges = [e for ndd in cfg.ndds for e in ndd.edges if e.edge_var.x > 0.5]
+    else:
+        ndd_chain_edges = []
+        matching_chains = []
+
+    matching_edges = pair_edges + ndd_chain_edges
+
+    if cfg.cardinality_restriction is not None:
+        if len(matching_edges) > cfg.cardinality_restriction:
+            raise Warning("cardinality restriction is violated: restriction = %d edges, matching uses %d edges" % (
+                cfg.cardinality_restriction, len(matching_edges)))
 
     cycles_used = [c for c, v in zip(cycles, cycle_vars) if v.x > 0.5]
     cycle_obj = [c for c in cycle_list if c.grb_var.x > 0.5]

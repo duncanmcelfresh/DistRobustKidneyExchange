@@ -50,6 +50,18 @@ def initialize_edge_weights(digraph, ndd_list, num_weight_measurements, alpha, r
         initialize_edge = initialize_edge_binary
     elif dist_type == 'unos':
         initialize_edge = initialize_edge_unos
+
+        # initiate features for each donor node
+        for e in digraph.es:
+            if not hasattr(e.tgt, 'p_list_fixed'):
+                initialize_recip_unos(e.tgt, rs)
+            e.p_list_fixed = e.tgt.p_list_fixed
+            e.w_list = e.tgt.w_list
+        for n in ndd_list:
+            initialize_recip_unos(n, rs)
+            for e in n.edges:
+                e.p_list_fixed = n.p_list_fixed
+                e.w_list = n.w_list
     elif dist_type == 'lkdpi':
         initialize_edge = initialize_edge_lkdpi
 
@@ -101,6 +113,54 @@ def initialize_edge_binary(e, alpha, num_weight_measurements, rs):
     e.true_mean_weight = 0.5
 
 
+def initialize_recip_unos(recip, rs):
+    """
+    initialize the recipient features for the unos-type distribution.
+
+    nothing is returned. the following fields are added to recipient Node recip:
+    - e.p_list_fixed: probability of each criteria being met for this donor (1 is always met, 0 is never met)
+    - e.w_list: weights associated with each criteria
+
+    Args
+        recip: (kidney_digraph.Node)
+        rs: (numpy.random.Randomstate)
+    """
+
+    # probabilities of meeting each criteria
+    p_list = [1.0,  # base points (100)
+              0.5,  # exact tissue type match (200)
+              0.5,  # highly sensitized (125)
+              0.5,  # at least one antibody mismatch (-5)
+              0.3,  # patient is <18 (100)
+              0.3,  # prior organ donor (150)
+              0.5,  # geographic proximity (1) (0, 25, 50, 75)]
+              0.5,  # geographic proximity (2) (0, 25, 50, 75)]
+              0.5]  # geographic proximity (3) (0, 25, 50, 75)]
+
+    # weights for each criteria
+    w_list = [1,  # base points (100)
+              200,  # exact tissue type match (200)
+              125,  # highly sensitized (125)
+              -5,  # at least one antibody mismatch (-5)
+              100,  # patient is <18 (100)
+              150,  # prior organ donor (150)
+              25,  # geographic proximity (1)
+              25,  # geographic proximity (2)
+              25]  # geographic proximity (3)
+
+    # for each criteria, draw an initial value; this will be equal to the deterministic edge weight
+    _, vars_realized = sample_unos_distribution(rs, w_list, p_list)
+
+    # these criteria are fixed
+    p_list_fixed = np.copy(p_list)
+    p_list_fixed[2] = vars_realized[2]
+    p_list_fixed[4] = vars_realized[4]
+    p_list_fixed[5] = vars_realized[5]
+
+    recip.p_list_fixed = p_list_fixed
+    recip.w_list = w_list
+
+
 def initialize_edge_unos(e, alpha, num_weight_measurements, rs):
     """
     initialize the edge distribution for an Edge using the unos-type distribution.
@@ -121,65 +181,40 @@ def initialize_edge_unos(e, alpha, num_weight_measurements, rs):
         rs: (numpy.random.Randomstate)
     """
 
-    # probabilities of meeting each criteria
-    p_list = [1.0,  # base points (100)
-              0.5,  # exact tissue type match (200)
-              0.5,  # highly sensitized (125)
-              0.5,  # at least one antibody mismatch (-5)
-              0.3,  # patient is <18 (100)
-              0.3,  # prior organ donor (150)
-              0.5,  # geographic proximity (1) (0, 25, 50, 75)]
-              0.5,  # geographic proximity (2) (0, 25, 50, 75)]
-              0.5]  # geographic proximity (3) (0, 25, 50, 75)]
-
-    # weights for each criteria
-    w_list = [1,  # base points (100)
-              200,  # exact tissue type match (200)
-              125,  # highly sensitized (125)
-              100,  # at least one antibody mismatch (-5)
-              100,  # patient is <18 (100)
-              150,  # prior organ donor (150)
-              25,  # geographic proximity (1)
-              25,  # geographic proximity (2)
-              25]  # geographic proximity (3)
-
-    # set a type : with probability alpha, the edge is random
     if rs.rand() < alpha:
-        # probabilistic edge
         e.type = 1
-
-        # for each criteria, draw an initial value; this will be equal to the deterministic edge weight
-        _, vars_realized = sample_unos_distribution(rs, w_list, p_list)
-
-        # these criteria are fixed
-        # p_list_fixed = np.copy(p_list)
-        # p_list_fixed[4] = vars_realized[4]
-        # p_list_fixed[5] = vars_realized[5]
-        # p_list_fixed[6] = vars_realized[6]
-        # p_list_fixed[7] = vars_realized[7]
-        # p_list_fixed[8] = vars_realized[8]
-        p_list_fixed = p_list
-
-        e.draw_edge_weight = lambda x: sample_unos_distribution(x, w_list, p_list_fixed)[0]
+        e.draw_edge_weight = lambda x: sample_unos_distribution(x, e.w_list, e.p_list_fixed)[0]
         e.weight_list = [e.draw_edge_weight(rs) for _ in range(num_weight_measurements)]
-        e.true_mean_weight = np.dot(p_list_fixed, w_list)
+        e.true_mean_weight = np.dot(e.p_list_fixed, e.w_list)
 
     else:
         # deterministic edge
         e.type = 0
 
         # for each criteria, draw an initial value; this will be equal to the deterministic edge weight
-        fixed_weight, _ = sample_unos_distribution(rs, w_list, p_list)
+        fixed_weight, _ = sample_unos_distribution(rs, e.w_list, e.p_list_fixed)
         e.draw_edge_weight = lambda x: fixed_weight
         e.weight_list = [fixed_weight] * num_weight_measurements
         e.true_mean_weight = fixed_weight
 
 
 def initial_lkdpi(x, rs):
-    x.lkdpi = rs.normal(37.1506024096, 22.2170610307)
+    # x.lkdpi = rs.normal(37.1506024096, 22.2170610307)
+    # a simpler lkdpi distribution - low / high
+    if rs.rand() < 0.5:
+        x.lkdpi = 14.93
+    else:
+        x.lkdpi = 59.37
 
 
-def initialize_edge_lkdpi(e, type, num_weight_measurements, rs):
-    e.true_mean_weight = 14.78 * np.exp(-0.01239 * e.lkdpi)
-    e.draw_edge_weight = lambda x: x.exponential(e.true_mean_weight)
-    e.weight_list = [e.draw_edge_weight(rs) for _ in range(num_weight_measurements)]
+def initialize_edge_lkdpi(e, alpha, num_weight_measurements, rs):
+    if rs.rand() < alpha:
+        e.type = 1
+        e.true_mean_weight = 14.78 * np.exp(-0.01239 * e.lkdpi)
+        e.draw_edge_weight = lambda x: x.exponential(e.true_mean_weight)
+        e.weight_list = [e.draw_edge_weight(rs) for _ in range(num_weight_measurements)]
+    else:
+        e.type = 0
+        e.true_mean_weight = 14.78 * np.exp(-0.01239 * e.lkdpi)
+        e.draw_edge_weight = lambda x: 14.78 * np.exp(-0.01239 * e.lkdpi)
+        e.weight_list = [e.draw_edge_weight(rs) for _ in range(num_weight_measurements)]

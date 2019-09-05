@@ -5,11 +5,14 @@ import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
 
+import matplotlib.font_manager as font_manager
+
+plt.rcParams["font.family"] = "Times New Roman"
 
 def lower_20pct_trimmed_mean(arr):
     """calculate the the mean of the array, including elements up to the p^th percentile. that is: the mean of the
     lowest (100 * p)% of the array."""
-    p = 0.2
+    p = 0.5
     return np.mean(sorted(arr)[:int(round(len(arr) * p, 0))])
 
 
@@ -32,7 +35,27 @@ def lower_20pct_trimmed_mean(arr):
 # output_file = '/Users/duncan/research/DistRobustKidneyExchange_output/debug/robust_kex_experiment_20190904_130132.csv'
 
 # new results with lkdpi and 128-node graphs, N=200 measurements per edge (PARTIAL)
-output_file = '/Users/duncan/research/DistRobustKidneyExchange_output/lkdpi_128_partial.csv'
+# output_file = '/Users/duncan/research/DistRobustKidneyExchange_output/lkdpi_128_partial.csv'
+
+# new results with lkdpi and 64-node graphs, N=100 measurements per edge, and LKDPI is a property of donors (PARTIAL)
+# output_file = '/Users/duncan/research/DistRobustKidneyExchange_output/debug/robust_kex_experiment_20190904_152427.csv'
+
+# new results with LKDPI as a property of donors and 64-node graphs and N=1000 measurements
+# output_file = '/Users/duncan/research/DistRobustKidneyExchange_output/robust_kex_experiment_20190905_083550.csv'
+
+# new results with UNOS as a property of donors and 64-node graphs and N=1000 measurements
+# output_file = '/Users/duncan/research/DistRobustKidneyExchange_output/robust_kex_experiment_20190905_103333.csv'
+
+# # new results with LKDPI as a property of donors and 64-node graphs and N=5000 measurements (PARTIAL)
+# output_file = '/Users/duncan/research/DistRobustKidneyExchange_output/robust_kex_experiment_20190905_130738.csv'
+
+# yet another LKDPI test... now with alpha = 0.5...
+# output_file = '/Users/duncan/research/DistRobustKidneyExchange_output/robust_kex_experiment_20190905_170049.csv'
+
+# output_file = '/Users/duncan/research/DistRobustKidneyExchange_output/debug/robust_kex_experiment_20190905_172132.csv'
+
+output_file = '/Users/duncan/research/DistRobustKidneyExchange_output/debug/robust_kex_experiment_20190905_173309.csv'
+
 
 
 # results
@@ -46,13 +69,13 @@ df['method'] = df['method'].str.replace(" ", "")
 
 # add a column for the parameter value for each method
 df['ro_gamma'] = df['method'].apply(lambda x: float(x.split('_')[2]) if x.startswith('ro') else '')
-df['ssa_gamma'] = df['method'].apply(lambda x: float(x.split('_')[2]) if x.startswith('ssa') else '')
-df['ssa_alpha'] = df['method'].apply(lambda x: float(x.split('_')[4]) if x.startswith('ssa') else '')
+df['saa_gamma'] = df['method'].apply(lambda x: float(x.split('_')[2]) if x.startswith('saa') else '')
+df['saa_alpha'] = df['method'].apply(lambda x: float(x.split('_')[4]) if x.startswith('saa') else '')
 
 # add a column to identify each method
 df['method_base'] = df['method']
 df.loc[df['method'].str.contains('ro_gamma'), ['method_base']] = 'ro'
-df.loc[df['method'].str.contains('ssa_'), ['method_base']] = 'ssa'
+df.loc[df['method'].str.contains('saa_'), ['method_base']] = 'saa'
 
 # --- aggregate results for each graph-distribution pair, over all realizations ---
 # create a uid for identifying each graph-distribution and each method
@@ -63,7 +86,7 @@ df['uid'] = df[id_columns].apply(tuple, axis=1)
 
 # for each method and each uid, get the max, min, mean, and mean-lowest-p% of the realized edge weights
 
-df_grouped = df.groupby(by=['uid', 'method_base', 'ro_gamma', 'ssa_gamma', 'ssa_alpha']).agg(
+df_grouped = df.groupby(by=['uid', 'method_base', 'ro_gamma', 'saa_gamma', 'saa_alpha']).agg(
     {
         'realized_score': ['min', 'max', 'mean', lower_20pct_trimmed_mean]
     }).reset_index()
@@ -89,10 +112,12 @@ df_clean['20pct_pct_diff'] = (df_clean['lower_20pct_trimmed_mean'] - df_clean['b
 plot_field = '20pct_pct_diff'
 # plot_field = 'mean_pct_diff'
 
+font = font_manager.FontProperties(family='Courier New')
+
 remove_zeros = False
 
-# create three subplots
-f, (ax1, ax2, ax3) = plt.subplots(1, 3, sharey=True)
+# create two subplots
+f, (ax1, ax2) = plt.subplots(1, 2, sharey=True, figsize=(8, 4))
 
 # --- gamma - RO ---
 if remove_zeros:
@@ -100,28 +125,52 @@ if remove_zeros:
 else:
     df_ro = df_clean[df_clean['method_base'] == 'ro']
 
-ax_ro = sns.boxplot(x='ro_gamma', y=plot_field, data=df_ro, ax=ax1)
+ax_ro = sns.boxplot(x='ro_gamma', y=plot_field, data=df_ro, ax=ax1)  # , label="_nolegend_")
 
-# --- nonrobust ---
-df_nonrobust = df_clean.loc[df_clean['method_base'].str.contains('nonrobust')]
-df_nonrobust['mean_type'] = 'sample mean'
-df_nonrobust.loc[df_nonrobust['method_base'].str.contains('true'), ['mean_type']] = 'true mean'
+ax1.set_title("RO")
+ax1.set_ylabel("$\\%NR$")
+ax1.set_xlabel("$\\Gamma$")
+baseline = ax1.plot([-100, 100], [0.0, 0.0], 'r:', linewidth=4, label="NR (baseline)")
 
-ax_nonrobust = sns.boxplot(x='mean_type', y=plot_field, data=df_nonrobust, ax=ax2)
+ax1.legend()  # ([baseline], ["NR (baseline)"])  # ,bbox_to_anchor=(1.05, 1), loc=2)
+
+# below - this is the baseline, so always zero
+# # --- nonrobust ---
+# df_nonrobust = df_clean.loc[df_clean['method_base'].str.contains('nonrobust')]
+# df_nonrobust['mean_type'] = 'sample mean'
+# df_nonrobust.loc[df_nonrobust['method_base'].str.contains('true'), ['mean_type']] = 'true mean'
+#
+# ax_nonrobust = sns.boxplot(x='mean_type', y=plot_field, data=df_nonrobust, ax=ax2)
 
 # --- gamma - SSA ---
 if remove_zeros:
-    df_ssa = df_clean[(df_clean['method_base'] == 'ssa') & (df_clean[plot_field] != 0.0)]
+    df_saa = df_clean[(df_clean['method_base'] == 'saa') & (df_clean[plot_field] != 0.0)]
 else:
-    df_ssa = df_clean[(df_clean['method_base'] == 'ssa')]
+    df_saa = df_clean[(df_clean['method_base'] == 'saa')]
 
-ax_ssa = sns.boxplot(x='ssa_gamma', y=plot_field, data=df_ssa, ax=ax3)
+ax_saa = sns.boxplot(x='saa_gamma', y=plot_field, data=df_saa, ax=ax2)
+
+# plot a line of the means
+gamma_vals = sorted(list(df_saa['saa_gamma'].unique()))
+mean_vals = []
+for gamma in gamma_vals:
+    mean_vals.append(df_saa[df_saa['saa_gamma'] == gamma][plot_field].mean())
+
+ax2.plot(gamma_vals, mean_vals, 'g', linewidth=4)
+ax2.plot([-100, 100], [0.0, 0.0], 'r:', linewidth=4)
+ax2.set_title("SAA-CVar")
+ax2.set_ylabel("")
+ax2.set_xlabel("$\\gamma$")
+
+
+
+
 
 # --- make plots for individual kex graphs ---
 
 uid_list = df_clean['uid'].unique()
 
-uid = uid_list[19]
+uid = uid_list[7]
 print('uid: %s' % str(uid))
 
 # create three subplots
@@ -140,8 +189,8 @@ df_nonrobust.loc[df_nonrobust['method_base'].str.contains('true'), ['mean_type']
 ax_nonrobust = sns.boxplot(x='mean_type', y='realized_score', data=df_nonrobust, ax=ax2)
 
 # --- gamma - SSA ---
-df_ssa = df[(df['method_base'] == 'ssa') & (df['uid'] == uid)]
+df_saa = df[(df['method_base'] == 'saa') & (df['uid'] == uid)]
 
-ax_ssa = sns.boxplot(x='ssa_gamma', y='realized_score', data=df_ssa, ax=ax3)
+ax_saa = sns.boxplot(x='saa_gamma', y='realized_score', data=df_saa, ax=ax3)
 
 plt.title(uid[0])

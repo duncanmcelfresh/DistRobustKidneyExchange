@@ -6,11 +6,10 @@ import numpy as np
 from edge_weight_distributions import initialize_edge_weights
 from kidney_graph_io import get_unos_graphs, get_cmu_graphs
 from utils import generate_filepath
-from kidney_ip import OptConfig, optimise_robust_picef, optimize_picef, optimize_SAA_picef
+from kidney_ip import OptConfig, optimise_robust_picef, optimize_picef, optimize_SAA_picef, optimize_DRO_SAA_picef
 
 
 def robust_kex_experiment(args):
-
     rs = np.random.RandomState(seed=args.seed)
 
     if not any([args.use_truemean, args.use_samplemean, args.use_saa, args.use_ro]):
@@ -77,28 +76,32 @@ def robust_kex_experiment(args):
                                       verbose=args.verbose,
                                       gamma=gamma))
 
-                # method 3: solve the DRO approach with SAA
+                # method 3: solve the SAA-CVar approach
                 if args.use_saa:
-                    for ssa_gamma in args.ssa_gamma_list:
-                        for ssa_alpha in args.ssa_alpha_list:
-                            sol_dict[('ssa_gamma_%s_alpha_%s' % (ssa_gamma, ssa_alpha))] = optimize_SAA_picef(
+                    for saa_gamma in args.saa_gamma_list:
+                        for saa_alpha in args.saa_alpha_list:
+                            sol_dict[('saa_gamma_%s_alpha_%s' % (saa_gamma, saa_alpha))] = optimize_SAA_picef(
                                 OptConfig(digraph, ndd_list, args.cycle_cap, args.chain_cap,
-                                          verbose=args.verbose), args.num_weight_measurements, ssa_gamma, ssa_alpha)
-                # # method 3: solve the DRO approach.
-                # set_sample_mean_edge_weight(digraph, ndd_list)
-                # for theta in theta_list:
-                #     sol_dict[('dro_theta_%s' % theta )] = \
-                    #         kidney_ip.optimize_DROinf_picef(OptConfig(digraph, ndd_list, cycle_cap, chain_cap,
-                #                                                   verbose=verbose), theta=theta)
+                                          verbose=args.verbose), args.num_weight_measurements, saa_gamma, saa_alpha)
 
-                # if verbose:
-                #     print("protection level epsilon = %f" % protection_level)
-                #     print("non-robust solution:")
-                #     print(sol_nonrobust.display())
-                #     print("edge-weight robust solution:")
-                #     print(sol_RO.display())
-                #     print("distributionally-robust solution:")
-                #     print(sol_DRO.display())
+                # method 4: solve the DRO approach
+                if args.use_dro_saa:
+                    theta = 0.01
+                    pair_e_list = digraph.es
+                    ndd_e_list = []
+                    for n in ndd_list:
+                        ndd_e_list.extend(n.edges)
+                    weights = [wt for e in pair_e_list for wt in e.weight_list] + [wt for e in ndd_e_list for wt in
+                                                                                   e.weight_list]
+                    w_min = min(weights)
+                    w_max = max(weights)
+                    for saa_gamma in args.saa_gamma_list:
+                        for saa_alpha in args.saa_alpha_list:
+                            sol_dict[('dro_saa_gamma_%s_alpha_%s' % (saa_gamma, saa_alpha))] = \
+                                optimize_DRO_SAA_picef(OptConfig(digraph, ndd_list, args.cycle_cap, args.chain_cap,
+                                                                 verbose=args.verbose),
+                                                       args.num_weight_measurements, saa_gamma, saa_alpha, theta, w_min,
+                                                       w_max)
 
                 with open(output_file, 'a') as f:
                     for i_realization in range(args.num_weight_realizations):
@@ -235,16 +238,16 @@ def main():
                         default=[1],
                         nargs="+",
                         help='list of gamma values (used only by edge-weight-robust')
-    parser.add_argument('--ssa-alpha-list',
+    parser.add_argument('--saa-alpha-list',
                         type=float,
                         default=[0.01, 0.05, 0.1],
                         nargs="+",
-                        help='list of alpha values (used only by ssa-robust')
-    parser.add_argument('--ssa-gamma-list',
+                        help='list of alpha values (used only by saa-robust')
+    parser.add_argument('--saa-gamma-list',
                         type=float,
                         default=[0.3, 0.5, 0.7],
                         nargs="+",
-                        help='list of gamma values (used only by ssa-robust')
+                        help='list of gamma values (used only by saa-robust')
     parser.add_argument('--graph-type',
                         type=str,
                         default='cmu',
@@ -273,7 +276,11 @@ def main():
                         default=False)
     parser.add_argument('--use-saa',
                         action='store_true',
-                        help='if set, calculate the SAA-CVar optimal matching (Ke 2020).',
+                        help='if set, calculate the SAA-CVar optimal matching (Ren 2020).',
+                        default=False)
+    parser.add_argument('--use-dro-saa',
+                        action='store_true',
+                        help='if set, calculate the DRO-SAA-CVar optimal matching (Ren 2020).',
                         default=False)
     parser.add_argument('--use-samplemean',
                         action='store_true',
@@ -292,19 +299,20 @@ def main():
 
     if args.DEBUG:
         # fixed set of parameters, for debugging:
-        arg_str = '--num-weight-measurements 100'
+        arg_str = '--num-weight-measurements 200'
         arg_str += ' --use-samplemean'
+        arg_str += ' --num-trials 4'
         arg_str += ' --use-saa'
         arg_str += ' --use-ro'
         arg_str += ' --dist-type lkdpi'
-        arg_str += ' --alpha-list 1.0'
-        arg_str += ' --num-weight-realizations 500'
-        arg_str += ' --ssa-alpha-list 0.2'
-        arg_str += ' --ssa-gamma-list 0 0.1 1 5 10 100'
+        arg_str += ' --alpha-list 0.5'
+        arg_str += ' --num-weight-realizations 1000'
+        arg_str += ' --saa-alpha-list 0.5'
+        arg_str += ' --saa-gamma-list 0.1 1 10 100'
         arg_str += ' --gamma-list 5'
         arg_str += ' --output-dir /Users/duncan/research/DistRobustKidneyExchange_output/debug'
         arg_str += ' --graph-type cmu'
-        arg_str += ' --input-dir /Users/duncan/research/graphs/graphs_from_john/graphs_128'
+        arg_str += ' --input-dir /Users/duncan/research/graphs/graphs_from_john/graphs_64'
 
         args_fixed = parser.parse_args(arg_str.split())
         robust_kex_experiment(args_fixed)
