@@ -54,7 +54,21 @@ def lower_20pct_trimmed_mean(arr):
 
 # output_file = '/Users/duncan/research/DistRobustKidneyExchange_output/debug/robust_kex_experiment_20190905_172132.csv'
 
-output_file = '/Users/duncan/research/DistRobustKidneyExchange_output/debug/robust_kex_experiment_20190905_173309.csv'
+# output_file = '/Users/duncan/research/DistRobustKidneyExchange_output/debug/robust_kex_experiment_20190905_173309.csv'
+
+# good!!!!
+output_file = '/Users/duncan/research/DistRobustKidneyExchange_output/gold/robust_kex_experiment_20190905_175226.csv'
+
+# this one is bad...
+# output_file = '/Users/duncan/research/DistRobustKidneyExchange_output/debug/robust_kex_experiment_20190905_180715.csv'
+
+
+# output_file = '/Users/duncan/research/DistRobustKidneyExchange_output/debug/robust_kex_experiment_20190905_183023.csv'
+
+
+# output_file = '/Users/duncan/research/DistRobustKidneyExchange_output/debug/robust_kex_experiment_20190905_184917.csv'
+
+output_file = '/Users/duncan/research/DistRobustKidneyExchange_output/debug/robust_kex_experiment_20190905_190336.csv'
 
 
 
@@ -109,8 +123,8 @@ df_clean['mean_pct_diff'] = (df_clean['mean'] - df_clean['baseline_mean']) / df_
 df_clean['20pct_pct_diff'] = (df_clean['lower_20pct_trimmed_mean'] - df_clean['baseline_lower_20pct_trimmed_mean']) / \
                              df_clean['baseline_lower_20pct_trimmed_mean']
 
-plot_field = '20pct_pct_diff'
-# plot_field = 'mean_pct_diff'
+# plot_field = '20pct_pct_diff'
+plot_field = 'mean_pct_diff'
 
 font = font_manager.FontProperties(family='Courier New')
 

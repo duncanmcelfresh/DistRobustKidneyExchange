@@ -128,11 +128,11 @@ def initialize_recip_unos(recip, rs):
 
     # probabilities of meeting each criteria
     p_list = [1.0,  # base points (100)
-              0.5,  # exact tissue type match (200)
-              0.5,  # highly sensitized (125)
+              0.005,  # exact tissue type match (200)
+              0.12,  # highly sensitized (125)
               0.5,  # at least one antibody mismatch (-5)
               0.3,  # patient is <18 (100)
-              0.3,  # prior organ donor (150)
+              0.5,  # prior organ donor (150)
               0.5,  # geographic proximity (1) (0, 25, 50, 75)]
               0.5,  # geographic proximity (2) (0, 25, 50, 75)]
               0.5]  # geographic proximity (3) (0, 25, 50, 75)]

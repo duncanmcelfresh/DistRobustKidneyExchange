@@ -299,14 +299,15 @@ def main():
 
     if args.DEBUG:
         # fixed set of parameters, for debugging:
-        arg_str = '--num-weight-measurements 200'
+        arg_str = '--num-weight-measurements 100'
         arg_str += ' --use-samplemean'
-        arg_str += ' --num-trials 4'
-        arg_str += ' --use-saa'
+        arg_str += ' --num-trials 1'
+        arg_str += ' --use-dro-saa'
+        # arg_str += ' --use-saa'
         arg_str += ' --use-ro'
-        arg_str += ' --dist-type lkdpi'
+        arg_str += ' --dist-type unos'
         arg_str += ' --alpha-list 0.5'
-        arg_str += ' --num-weight-realizations 1000'
+        arg_str += ' --num-weight-realizations 100'
         arg_str += ' --saa-alpha-list 0.5'
         arg_str += ' --saa-gamma-list 0.1 1 10 100'
         arg_str += ' --gamma-list 5'
