@@ -987,9 +987,7 @@ def optimize_DRO_SAA_picef(cfg, num_weight_measurements, gamma, alpha, theta, w_
     b2 = - d_var * gamma / alpha
 
     # construct a list of all edges, for convenience
-    e_list = cfg.digraph.es
-    for n in cfg.ndds:
-        e_list.extend(n.edges)
+    e_list = cfg.digraph.es + [e for n in cfg.ndds for e in n.edges]
 
     # add main constraints
     for i_measurement in range(num_weight_measurements):
@@ -1051,6 +1049,7 @@ def optimize_DRO_SAA_picef(cfg, num_weight_measurements, gamma, alpha, theta, w_
     if cfg.use_chains:
         matching_chains = kidney_utils.get_optimal_chains(
             cfg.digraph, cfg.ndds, cfg.edge_success_prob)
+        # matching_chains = []
         ndd_chain_edges = [e for ndd in cfg.ndds for e in ndd.edges if e.edge_var.x > 0.5]
     else:
         ndd_chain_edges = []

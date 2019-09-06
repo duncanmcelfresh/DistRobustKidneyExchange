@@ -107,7 +107,7 @@ def robust_kex_experiment(args):
                     for i_realization in range(args.num_weight_realizations):
 
                         # apply a realization to each edge
-                        realize_edge_weights(digraph, ndd_list, rs=rs)
+                        realize_edge_weights(digraph, ndd_list, rs, args.noise_scale)
 
                         if args.use_omniscient:
                             # solve for the (omniscient) optimal edge weight
@@ -180,7 +180,7 @@ def set_RO_weight_parameters(digraph, ndd_list):
             e.discount = e.weight - np.min(e.weight_list)
 
 
-def realize_edge_weights(digraph, ndd_list, rs):
+def realize_edge_weights(digraph, ndd_list, rs, noise_scale=0.0):
     """simulate a realization of each edge weight, by drawing from a distribution and setting the property edge.weight
 
     Args:
@@ -189,12 +189,21 @@ def realize_edge_weights(digraph, ndd_list, rs):
         rs: (numpy.random.RandomState).
     """
 
-    for e in digraph.es:
-        e.weight = e.draw_edge_weight(rs)
-    for n in ndd_list:
-        for e in n.edges:
-            e.weight = e.draw_edge_weight(rs)
+    if noise_scale > 0:
 
+        noise = lambda e: rs.normal(0.0, noise_scale * np.mean(e.weight_list))
+
+        for e in digraph.es:
+            e.weight = e.draw_edge_weight(rs) + noise(e)
+        for n in ndd_list:
+            for e in n.edges:
+                e.weight = e.draw_edge_weight(rs) + noise(e)
+    else:
+        for e in digraph.es:
+            e.weight = e.draw_edge_weight(rs)
+        for n in ndd_list:
+            for e in n.edges:
+                e.weight = e.draw_edge_weight(rs)
 
 def main():
     # run the experiment. sample usage:
@@ -290,6 +299,10 @@ def main():
                         action='store_true',
                         help='if set, use the non-robust with true mean edge weight.',
                         default=False)
+    parser.add_argument('--noise-scale',
+                        type=float,
+                        default=0.0,
+                        help='amount of noise to add to the realizations, on [0, 1].')
     parser.add_argument('--DEBUG',
                         action='store_true',
                         help='if set, use a fixed arg string for debugging. otherwise, parse args.',
@@ -299,15 +312,16 @@ def main():
 
     if args.DEBUG:
         # fixed set of parameters, for debugging:
-        arg_str = '--num-weight-measurements 100'
+        arg_str = '--num-weight-measurements 10'
         arg_str += ' --use-samplemean'
         arg_str += ' --num-trials 1'
         arg_str += ' --use-dro-saa'
+        arg_str += ' --noise-scale 0.4'
         # arg_str += ' --use-saa'
         arg_str += ' --use-ro'
-        arg_str += ' --dist-type unos'
+        arg_str += ' --dist-type lkdpi'
         arg_str += ' --alpha-list 0.5'
-        arg_str += ' --num-weight-realizations 100'
+        arg_str += ' --num-weight-realizations 1000'
         arg_str += ' --saa-alpha-list 0.5'
         arg_str += ' --saa-gamma-list 0.1 1 10 100'
         arg_str += ' --gamma-list 5'

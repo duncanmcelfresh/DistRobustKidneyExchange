@@ -199,12 +199,15 @@ def initialize_edge_unos(e, alpha, num_weight_measurements, rs):
 
 
 def initial_lkdpi(x, rs):
-    # x.lkdpi = rs.normal(37.1506024096, 22.2170610307)
-    # a simpler lkdpi distribution - low / high
+    # a simpler lkdpi distribution - mean +/- sigma
     if rs.rand() < 0.5:
         x.lkdpi = 14.93
     else:
         x.lkdpi = 59.37
+
+
+def full_lkdpi(x, rs):
+    x.lkdpi = rs.normal(37.1506024096, 22.2170610307)
 
 
 def initialize_edge_lkdpi(e, alpha, num_weight_measurements, rs):
