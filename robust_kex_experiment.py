@@ -22,6 +22,7 @@ def robust_kex_experiment(args):
     output_columns = ['graph_name',
                       'trial_num',
                       'alpha',
+                      'noise_scale',
                       'realization_num',
                       'cycle_cap',
                       'chain_cap',
@@ -71,7 +72,7 @@ def robust_kex_experiment(args):
                 if args.use_ro:
                     set_RO_weight_parameters(digraph, ndd_list)
                     for gamma in args.gamma_list:
-                        sol_dict[('ro_gamma_%s' % gamma)] = optimise_robust_picef(
+                        sol_dict[('ro_gamma_%s' % str(gamma))] = optimise_robust_picef(
                             OptConfig(digraph, ndd_list, args.cycle_cap, args.chain_cap,
                                       verbose=args.verbose,
                                       gamma=gamma))
@@ -80,55 +81,59 @@ def robust_kex_experiment(args):
                 if args.use_saa:
                     for saa_gamma in args.saa_gamma_list:
                         for saa_alpha in args.saa_alpha_list:
-                            sol_dict[('saa_gamma_%s_alpha_%s' % (saa_gamma, saa_alpha))] = optimize_SAA_picef(
+                            sol_dict[('saa_gamma_%s_alpha_%s' % (str(saa_gamma), str(saa_alpha)))] = optimize_SAA_picef(
                                 OptConfig(digraph, ndd_list, args.cycle_cap, args.chain_cap,
                                           verbose=args.verbose), args.num_weight_measurements, saa_gamma, saa_alpha)
 
                 # method 4: solve the DRO approach
                 if args.use_dro_saa:
-                    theta = 0.01
-                    pair_e_list = digraph.es
-                    ndd_e_list = []
-                    for n in ndd_list:
-                        ndd_e_list.extend(n.edges)
-                    weights = [wt for e in pair_e_list for wt in e.weight_list] + [wt for e in ndd_e_list for wt in
-                                                                                   e.weight_list]
-                    w_min = min(weights)
-                    w_max = max(weights)
-                    for saa_gamma in args.saa_gamma_list:
-                        for saa_alpha in args.saa_alpha_list:
-                            sol_dict[('dro_saa_gamma_%s_alpha_%s' % (saa_gamma, saa_alpha))] = \
-                                optimize_DRO_SAA_picef(OptConfig(digraph, ndd_list, args.cycle_cap, args.chain_cap,
-                                                                 verbose=args.verbose),
-                                                       args.num_weight_measurements, saa_gamma, saa_alpha, theta, w_min,
-                                                       w_max)
+                    for theta in args.saa_theta_list:
+                        pair_e_list = digraph.es
+                        ndd_e_list = []
+                        for n in ndd_list:
+                            ndd_e_list.extend(n.edges)
+                        weights = [wt for e in pair_e_list for wt in e.weight_list] + [wt for e in ndd_e_list for wt in
+                                                                                       e.weight_list]
+                        w_min = min(weights)
+                        w_max = max(weights)
+                        for saa_gamma in args.saa_gamma_list:
+                            for saa_alpha in args.saa_alpha_list:
+                                sol_dict[('dro_saa_gamma_%s_alpha_%s_theta_%s' % (
+                                str(saa_gamma), str(saa_alpha), str(theta)))] = \
+                                    optimize_DRO_SAA_picef(OptConfig(digraph, ndd_list, args.cycle_cap, args.chain_cap,
+                                                                     verbose=args.verbose),
+                                                           args.num_weight_measurements, saa_gamma, saa_alpha, theta,
+                                                           w_min,
+                                                           w_max)
 
                 with open(output_file, 'a') as f:
                     for i_realization in range(args.num_weight_realizations):
 
-                        # apply a realization to each edge
-                        realize_edge_weights(digraph, ndd_list, rs, args.noise_scale)
+                        for noise_scale in args.noise_scale_list:
+                            # apply a realization to each edge
+                            realize_edge_weights(digraph, ndd_list, rs, noise_scale)
 
-                        if args.use_omniscient:
-                            # solve for the (omniscient) optimal edge weight
-                            sol_dict['omniscient'] = optimize_picef(OptConfig(digraph,
-                                                                              ndd_list,
-                                                                              args.cycle_cap,
-                                                                              args.chain_cap,
-                                                                              verbose=args.verbose))
+                            if args.use_omniscient:
+                                # solve for the (omniscient) optimal edge weight
+                                sol_dict['omniscient'] = optimize_picef(OptConfig(digraph,
+                                                                                  ndd_list,
+                                                                                  args.cycle_cap,
+                                                                                  args.chain_cap,
+                                                                                  verbose=args.verbose))
 
-                        for sol_name, (sol, matched_edges) in sol_dict.items():
-                            score = sum([e.weight for e in matched_edges])
+                            for sol_name, (sol, matched_edges) in sol_dict.items():
+                                score = sum([e.weight for e in matched_edges])
 
-                            f.write((','.join(8 * ['%s']) + '\n') %
-                                    (graph_name,
-                                     '%d' % i_trial,
-                                     '%.3e' % alpha,
-                                     '%d' % i_realization,
-                                     '%d' % args.cycle_cap,
-                                     '%d' % args.chain_cap,
-                                     sol_name,
-                                     '%.4e' % score))
+                                f.write((','.join(8 * ['%s']) + '\n') %
+                                        (graph_name,
+                                         '%d' % i_trial,
+                                         '%.3e' % alpha,
+                                         '%.3e' % noise_scale,
+                                         '%d' % i_realization,
+                                         '%d' % args.cycle_cap,
+                                         '%d' % args.chain_cap,
+                                         sol_name,
+                                         '%.4e' % score))
 
 
 def set_nominal_edge_weight(digraph, ndd_list):
@@ -187,6 +192,8 @@ def realize_edge_weights(digraph, ndd_list, rs, noise_scale=0.0):
         digraph: (kidney_digraph.Graph).
         ndd_list: (list(kidney_ndds.Ndd)).
         rs: (numpy.random.RandomState).
+        noise_scale: (float) if >0, Gaussian noise with mean 0 and variance noise_scale * E[edge weight] is added
+            to each realization. must be >= 0.
     """
 
     if noise_scale > 0:
@@ -257,6 +264,11 @@ def main():
                         default=[0.3, 0.5, 0.7],
                         nargs="+",
                         help='list of gamma values (used only by saa-robust')
+    parser.add_argument('--saa-theta-list',
+                        type=float,
+                        default=[1.0],
+                        nargs="+",
+                        help='list of theta values (used only by saa-robust')
     parser.add_argument('--graph-type',
                         type=str,
                         default='cmu',
@@ -299,9 +311,10 @@ def main():
                         action='store_true',
                         help='if set, use the non-robust with true mean edge weight.',
                         default=False)
-    parser.add_argument('--noise-scale',
+    parser.add_argument('--noise-scale-list',
                         type=float,
-                        default=0.0,
+                        nargs="+",
+                        default=[0.0],
                         help='amount of noise to add to the realizations, on [0, 1].')
     parser.add_argument('--DEBUG',
                         action='store_true',
@@ -316,7 +329,7 @@ def main():
         arg_str += ' --use-samplemean'
         arg_str += ' --num-trials 1'
         arg_str += ' --use-dro-saa'
-        arg_str += ' --noise-scale 0.4'
+        arg_str += ' --noise-scale-list 0.4'
         # arg_str += ' --use-saa'
         arg_str += ' --use-ro'
         arg_str += ' --dist-type lkdpi'

@@ -73,7 +73,10 @@ output_file = '/Users/duncan/research/DistRobustKidneyExchange_output/gold/robus
 # output_file = '/Users/duncan/research/DistRobustKidneyExchange_output/debug/robust_kex_experiment_20190905_184917.csv'
 
 # THIS IS THE DRO RESULTS
-output_file = '/Users/duncan/research/DistRobustKidneyExchange_output/debug/robust_kex_experiment_20190905_202420.csv'
+# output_file = '/Users/duncan/research/DistRobustKidneyExchange_output/debug/robust_kex_experiment_20190905_202420.csv'
+
+# better DRO results
+output_file = '/Users/duncan/research/DistRobustKidneyExchange_output/robust_kex_experiment_20190907_121809.csv'
 
 
 
@@ -197,10 +200,10 @@ plot_field = '20pct_pct_diff'
 
 font = font_manager.FontProperties(family='Courier New')
 
-remove_zeros = False
+remove_zeros = True
 
 # create two subplots
-f, (ax1, ax2) = plt.subplots(1, 2, sharey=True, figsize=(5, 3))
+f, (ax1, ax2, ax3) = plt.subplots(1, 3, sharey=True, figsize=(6, 3))
 
 # --- gamma - RO ---
 if remove_zeros:
@@ -225,13 +228,34 @@ ax1.legend()  # ([baseline], ["NR (baseline)"])  # ,bbox_to_anchor=(1.05, 1), lo
 #
 # ax_nonrobust = sns.boxplot(x='mean_type', y=plot_field, data=df_nonrobust, ax=ax2)
 
+# --- gamma - SSA ---
+if remove_zeros:
+    df_saa = df_clean[(df_clean['method_base'] == 'saa') & (df_clean[plot_field] != 0.0)]
+else:
+    df_saa = df_clean[(df_clean['method_base'] == 'saa')]
+
+ax_saa = sns.boxplot(x='saa_gamma', y=plot_field, data=df_saa, ax=ax2)
+
+# plot a line of the means
+gamma_vals = sorted(list(df_saa['saa_gamma'].unique()))
+mean_vals = []
+for gamma in gamma_vals:
+    mean_vals.append(df_saa[df_saa['saa_gamma'] == gamma][plot_field].mean())
+
+ax2.plot(gamma_vals, mean_vals, 'g', linewidth=2)
+ax2.plot([-100, 100], [0.0, 0.0], 'r:', linewidth=2)
+ax2.set_title("CVar")
+ax2.set_ylabel("")
+ax2.set_xlabel("$\\gamma$")
+
+
 # --- gamma - dro ---
 if remove_zeros:
     df_saa = df_clean[(df_clean['method_base'] == 'dro') & (df_clean[plot_field] != 0.0)]
 else:
     df_saa = df_clean[(df_clean['method_base'] == 'dro')]
 
-ax_saa = sns.boxplot(x='dro_gamma', y=plot_field, data=df_saa, ax=ax2)
+ax_saa = sns.boxplot(x='dro_gamma', y=plot_field, data=df_saa, ax=ax3)
 
 # plot a line of the means
 gamma_vals = sorted(list(df_saa['dro_gamma'].unique()))
@@ -239,11 +263,11 @@ mean_vals = []
 for gamma in gamma_vals:
     mean_vals.append(df_saa[df_saa['dro_gamma'] == gamma][plot_field].mean())
 
-ax2.plot(gamma_vals, mean_vals, 'g', linewidth=2)
-ax2.plot([-100, 100], [0.0, 0.0], 'r:', linewidth=2)
-ax2.set_title("DRO")
-ax2.set_ylabel("")
-ax2.set_xlabel("$\\gamma$")
+ax3.plot(gamma_vals, mean_vals, 'g', linewidth=2)
+ax3.plot([-100, 100], [0.0, 0.0], 'r:', linewidth=2)
+ax3.set_title("DRO")
+ax3.set_ylabel("")
+ax3.set_xlabel("$\\gamma$")
 
 plt.tight_layout()
 plt.savefig("/Users/duncan/Downloads/dro_results.pdf")
