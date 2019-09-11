@@ -124,7 +124,7 @@ def robust_kex_experiment(args):
                             for sol_name, (sol, matched_edges) in sol_dict.items():
                                 score = sum([e.weight for e in matched_edges])
 
-                                f.write((','.join(8 * ['%s']) + '\n') %
+                                f.write((','.join(len(output_columns) * ['%s']) + '\n') %
                                         (graph_name,
                                          '%d' % i_trial,
                                          '%.3e' % alpha,
