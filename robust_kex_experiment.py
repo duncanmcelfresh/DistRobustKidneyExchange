@@ -193,12 +193,13 @@ def realize_edge_weights(digraph, ndd_list, rs, noise_scale=0.0):
         ndd_list: (list(kidney_ndds.Ndd)).
         rs: (numpy.random.RandomState).
         noise_scale: (float) if >0, Gaussian noise with mean 0 and variance noise_scale * E[edge weight] is added
-            to each realization. must be >= 0.
+            to each realization. must be >= 0. noise is only added to stochastic edges. deterministic edges always have
+            zero noise.
     """
 
     if noise_scale > 0:
 
-        noise = lambda e: rs.normal(0.0, noise_scale * np.mean(e.weight_list))
+        noise = lambda e: 0 if e.type == 0 else rs.normal(0.0, noise_scale * np.mean(e.weight_list))
 
         for e in digraph.es:
             e.weight = e.draw_edge_weight(rs) + noise(e)
@@ -329,14 +330,15 @@ def main():
         arg_str += ' --use-samplemean'
         arg_str += ' --num-trials 1'
         arg_str += ' --use-dro-saa'
-        arg_str += ' --noise-scale-list 0.4'
-        # arg_str += ' --use-saa'
+        arg_str += ' --noise-scale-list 0.0'  # 0.0 0.1 0.5 0.7'
+        arg_str += ' --use-saa'
         arg_str += ' --use-ro'
         arg_str += ' --dist-type lkdpi'
         arg_str += ' --alpha-list 0.5'
         arg_str += ' --num-weight-realizations 1000'
         arg_str += ' --saa-alpha-list 0.5'
-        arg_str += ' --saa-gamma-list 0.1 1 10 100'
+        arg_str += ' --saa-theta-list 0.01'  # 0.01 0.1 1.0 10 100 1000 10000'
+        arg_str += ' --saa-gamma-list 10'
         arg_str += ' --gamma-list 5'
         arg_str += ' --output-dir /Users/duncan/research/DistRobustKidneyExchange_output/debug'
         arg_str += ' --graph-type cmu'

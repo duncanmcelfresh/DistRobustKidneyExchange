@@ -212,11 +212,13 @@ def full_lkdpi(x, rs):
 
 def initialize_edge_lkdpi(e, alpha, num_weight_measurements, rs):
     if rs.rand() < alpha:
+        # stochastic edge
         e.type = 1
         e.true_mean_weight = 14.78 * np.exp(-0.01239 * e.lkdpi)
         e.draw_edge_weight = lambda x: x.exponential(e.true_mean_weight)
         e.weight_list = [e.draw_edge_weight(rs) for _ in range(num_weight_measurements)]
     else:
+        # deterministic edge
         e.type = 0
         e.true_mean_weight = 14.78 * np.exp(-0.01239 * e.lkdpi)
         e.draw_edge_weight = lambda x: 14.78 * np.exp(-0.01239 * e.lkdpi)
