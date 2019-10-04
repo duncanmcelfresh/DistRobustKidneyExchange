@@ -18,7 +18,7 @@ def lower_pct_trimmed_mean(arr):
 
 
 # dro results
-output_file = '/Users/duncan/research/DistRobustKidneyExchange_output/dro/robust_kex_experiment_20190911_185028.csv'
+output_file = '/Users/duncan/research/DistRobustKidneyExchange_output/dro/robust_kex_experiment_20190920_130208.csv'
 
 # results
 df = pd.read_csv(output_file, skiprows=1)
@@ -30,7 +30,7 @@ df.columns = [str.strip(c) for c in df.columns]
 df['method'] = df['method'].str.replace(" ", "")
 
 # for sanity's sake, take only look at one of the noise scale values
-noise_scale = 0.7
+noise_scale = 0.9
 df = df.loc[df['noise_scale'].isin([noise_scale])]
 
 # add a column for the parameter value for each method
@@ -169,7 +169,9 @@ ax3.set_xlabel("$\\theta$ ($\\gamma=10.0$)")
 plt.suptitle("noise level = %3.1f" % noise_scale)
 plt.tight_layout()
 
-plt.savefig("/Users/duncan/Downloads/dro_results.pdf")
+# plt.savefig("/Users/duncan/Downloads/dro_results.pdf")
+
+
 
 # --- plot worst-case gamma-pct mean ---
 

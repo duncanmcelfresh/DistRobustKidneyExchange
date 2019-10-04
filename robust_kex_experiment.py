@@ -199,13 +199,29 @@ def realize_edge_weights(digraph, ndd_list, rs, noise_scale=0.0):
 
     if noise_scale > 0:
 
-        noise = lambda e: 0 if e.type == 0 else rs.normal(0.0, noise_scale * np.mean(e.weight_list))
+        # draw noise separately for each donor node
+        for node in digraph.vs + ndd_list:
+            if node.type == 0:
+                # deterministic edge (no noise)
+                node.weight = node.draw_edge_weight(rs)
+            elif node.type == 1:
+                # stochastic edge (add normal noise)
+                node.weight = max(node.draw_edge_weight(rs) + rs.normal(0.0, noise_scale * node.true_mean_weight), 0.0)
 
         for e in digraph.es:
-            e.weight = e.draw_edge_weight(rs) + noise(e)
+            e.weight = e.src.weight
         for n in ndd_list:
             for e in n.edges:
-                e.weight = e.draw_edge_weight(rs) + noise(e)
+                e.weight = n.weight
+
+        # # below is used only if edges are independent
+        # noise = lambda e: 0 if e.type == 0 else rs.normal(0.0, noise_scale * np.mean(e.weight_list))
+        #
+        # for e in digraph.es:
+        #     e.weight = e.draw_edge_weight(rs) + noise(e)
+        # for n in ndd_list:
+        #     for e in n.edges:
+        #         e.weight = e.draw_edge_weight(rs) + noise(e)
     else:
         for e in digraph.es:
             e.weight = e.draw_edge_weight(rs)
@@ -326,7 +342,7 @@ def main():
 
     if args.DEBUG:
         # fixed set of parameters, for debugging:
-        arg_str = '--num-weight-measurements 10'
+        arg_str = '--num-weight-measurements 3'
         arg_str += ' --use-samplemean'
         arg_str += ' --num-trials 1'
         arg_str += ' --use-dro-saa'

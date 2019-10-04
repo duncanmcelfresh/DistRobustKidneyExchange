@@ -62,24 +62,37 @@ def initialize_edge_weights(digraph, ndd_list, num_weight_measurements, alpha, r
             for e in n.edges:
                 e.p_list_fixed = n.p_list_fixed
                 e.w_list = n.w_list
+
     elif dist_type == 'lkdpi':
-        initialize_edge = initialize_edge_lkdpi
 
-        # initiate a fixed lkdpi for each edge
+        # initialize donor LKDPI & weight measurements (edges inherit weights from donors)
+        for node in digraph.vs + ndd_list:
+            initialize_lkdpi_node(node, alpha, num_weight_measurements, rs)
+
         for e in digraph.es:
-            if not hasattr(e.src, 'lkdpi'):
-                initial_lkdpi(e.src, rs)
-            e.lkdpi = e.src.lkdpi
-        for n in ndd_list:
-            initial_lkdpi(n, rs)
-            for e in n.edges:
-                e.lkdpi = n.lkdpi
+            assert hasattr(e.src, 'lkdpi')
 
-    for e in digraph.es:
-        initialize_edge(e, alpha, num_weight_measurements, rs)
-    for n in ndd_list:
-        for e in n.edges:
-            initialize_edge(e, alpha, num_weight_measurements, rs)
+            # inherit these properties from the source (donor) node
+            e.type = e.src.type
+            e.true_mean_weight = e.src.true_mean_weight
+            e.draw_edge_weight = e.src.draw_edge_weight
+            e.weight_list = e.src.weight_list
+
+        for n in ndd_list:
+            assert hasattr(n, 'lkdpi')
+            for e in n.edges:
+                # inherit these properties from the source (donor) node
+                e.type = n.type
+                e.true_mean_weight = n.true_mean_weight
+                e.draw_edge_weight = n.draw_edge_weight
+                e.weight_list = n.weight_list
+
+    # # this was needed only when edges had independent weights.
+    # for e in digraph.es:
+    #     initialize_edge(e, alpha, num_weight_measurements, rs)
+    # for n in ndd_list:
+    #     for e in n.edges:
+    #         initialize_edge(e, alpha, num_weight_measurements, rs)
 
 
 ########################################################################################################################
@@ -198,12 +211,36 @@ def initialize_edge_unos(e, alpha, num_weight_measurements, rs):
         e.true_mean_weight = fixed_weight
 
 
-def initial_lkdpi(x, rs):
-    # a simpler lkdpi distribution - mean +/- sigma
+def initialize_lkdpi(e, rs):
+    # initialize the LKDPI for an edge. this is the mean LKDPI (from a known distribution) +/- 1 SD
     if rs.rand() < 0.5:
-        x.lkdpi = 14.93
+        e.lkdpi = 14.93
     else:
-        x.lkdpi = 59.37
+        e.lkdpi = 59.37
+
+
+def initialize_lkdpi_node(node, alpha, num_weight_measurements, rs):
+    # initialize the LKDPI for a node. this is the mean LKDPI (from a known distribution) +/- 1 SD
+
+    # determine whether the node is high or low LKDPI (equal probability of each)
+    if rs.rand() < 0.5:
+        node.lkdpi = 14.93
+    else:
+        node.lkdpi = 59.37
+
+    # determine whether the node is stochastic or deterministic
+    if rs.rand() < alpha:
+        # stochastic node
+        node.type = 1
+        node.true_mean_weight = 14.78 * np.exp(-0.01239 * node.lkdpi)
+        node.draw_edge_weight = lambda x: x.exponential(node.true_mean_weight)
+        node.weight_list = [node.draw_edge_weight(rs) for _ in range(num_weight_measurements)]
+    else:
+        # deterministic node
+        node.type = 0
+        node.true_mean_weight = 14.78 * np.exp(-0.01239 * node.lkdpi)
+        node.draw_edge_weight = lambda x: node.true_mean_weight
+        node.weight_list = [node.draw_edge_weight(rs) for _ in range(num_weight_measurements)]
 
 
 def full_lkdpi(x, rs):
