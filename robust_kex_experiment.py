@@ -87,7 +87,7 @@ def robust_kex_experiment(args):
 
                 # method 4: solve the DRO approach
                 if args.use_dro_saa:
-                    for theta in args.saa_theta_list:
+                    for theta in args.dro_theta_list:
                         pair_e_list = digraph.es
                         ndd_e_list = []
                         for n in ndd_list:
@@ -281,11 +281,11 @@ def main():
                         default=[0.3, 0.5, 0.7],
                         nargs="+",
                         help='list of gamma values (used only by saa-robust')
-    parser.add_argument('--saa-theta-list',
+    parser.add_argument('--dro-theta-list',
                         type=float,
                         default=[1.0],
                         nargs="+",
-                        help='list of theta values (used only by saa-robust')
+                        help='list of theta values (used only by dro-robust')
     parser.add_argument('--graph-type',
                         type=str,
                         default='cmu',
@@ -353,7 +353,7 @@ def main():
         arg_str += ' --alpha-list 0.5'
         arg_str += ' --num-weight-realizations 1000'
         arg_str += ' --saa-alpha-list 0.5'
-        arg_str += ' --saa-theta-list 0.01'  # 0.01 0.1 1.0 10 100 1000 10000'
+        arg_str += ' --dro-theta-list 0.01'  # 0.01 0.1 1.0 10 100 1000 10000'
         arg_str += ' --saa-gamma-list 10'
         arg_str += ' --gamma-list 5'
         arg_str += ' --output-dir /Users/duncan/research/DistRobustKidneyExchange_output/debug'
