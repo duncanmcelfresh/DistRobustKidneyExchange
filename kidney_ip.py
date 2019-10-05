@@ -1023,12 +1023,14 @@ def optimize_DRO_SAA_picef(cfg, num_weight_measurements, gamma, alpha, theta, w_
             m.addConstr(
                 e_norm_plus_vars_k1[i_e] - e_norm_minus_vars_k1[i_e] == e.eta_vars[i_measurement, 0] - e.mu_vars[
                     i_measurement, 0] + e.used_var)
-            m.addConstr(quicksum(e_norm_plus_vars_k1) + quicksum(e_norm_minus_vars_k1) <= lam_var)
             # k = 2
             m.addConstr(
                 e_norm_plus_vars_k2[i_e] - e_norm_minus_vars_k2[i_e] == e.eta_vars[i_measurement, 1] - e.mu_vars[
-                    i_measurement, 1] + e.used_var)
-            m.addConstr(quicksum(e_norm_plus_vars_k2) + quicksum(e_norm_minus_vars_k2) <= lam_var)
+                    i_measurement, 1] + (1 + gamma / alpha) * e.used_var)
+
+        # the 1-norm must be bounded by lambda, for each measurement and for each k
+        m.addConstr(quicksum(e_norm_plus_vars_k2) + quicksum(e_norm_minus_vars_k2) <= lam_var)
+        m.addConstr(quicksum(e_norm_plus_vars_k1) + quicksum(e_norm_minus_vars_k1) <= lam_var)
 
     # objective
     obj = lam_var * theta + (1.0 / float(num_weight_measurements)) * quicksum(s_vars) + gamma * d_var
