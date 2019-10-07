@@ -13,12 +13,12 @@ plt.rcParams["font.family"] = "Times New Roman"
 def lower_pct_trimmed_mean(arr):
     """calculate the the mean of the array, including elements up to the p^th percentile. that is: the mean of the
     lowest (100 * p)% of the array."""
-    p = 0.1
+    p = 0.3
     return np.mean(sorted(arr)[:int(round(len(arr) * p, 0))])
 
 
 # dro results
-output_file = '/Users/duncan/research/DistRobustKidneyExchange_output/dro/robust_kex_experiment_20191004_101728.csv'
+output_file = '/Users/duncan/research/DistRobustKidneyExchange_output/dro/robust_kex_experiment_20191006_081745.csv'
 
 # results
 df = pd.read_csv(output_file, skiprows=1)
@@ -37,11 +37,11 @@ df = df.loc[df['noise_scale'].isin([noise_scale])]
 plot_gamma = 100.0
 
 # take only one alpha value
-plot_alpha = 0.1
+plot_alpha = 0.3
 
 # optional: take only one trial
-trial_num = 2
-df = df.loc[df['trial_num'] == trial_num]
+# trial_num = 2
+# df = df.loc[df['trial_num'] == trial_num]
 
 # add a column for the parameter value for each method
 df['ro_gamma'] = df['method'].apply(lambda x: float(x.split('_')[2]) if x.startswith('ro') else '')
@@ -104,7 +104,7 @@ df_clean['lowerpct_pct_diff'] = (df_clean['lower_pct_trimmed_mean'] - df_clean['
                                 df_clean['baseline_lower_pct_trimmed_mean']
 
 plot_field = 'lowerpct_pct_diff'
-# plot_field = 'min_pct_diff'
+# plot_field = 'mean_pct_diff'
 
 
 font = font_manager.FontProperties(family='Courier New')

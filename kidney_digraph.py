@@ -9,8 +9,10 @@ import pandas
 import json
 import os
 
+
 class KidneyReadException(Exception):
     pass
+
 
 def cycle_weight(cycle, digraph):
     """Calculate the sum of a cycle's edge weights.
@@ -20,8 +22,9 @@ def cycle_weight(cycle, digraph):
         digraph: The digraph in which this cycle appears.
     """
 
-    return sum(digraph.adj_mat[cycle[i-1].id][cycle[i].id].weight
-                        for i in range(len(cycle)))
+    return sum(digraph.adj_mat[cycle[i - 1].id][cycle[i].id].weight
+               for i in range(len(cycle)))
+
 
 def cycle_weight_weighted(cycle, digraph):
     """Calculate the sum of a cycle's edge weights.
@@ -31,8 +34,9 @@ def cycle_weight_weighted(cycle, digraph):
         digraph: The digraph in which this cycle appears.
     """
 
-    return sum(digraph.adj_mat[cycle[i-1].id][cycle[i].id].weight *(1.0 + digraph.adj_mat[cycle[i-1].id][cycle[i].id].alpha)
-                        for i in range(len(cycle)))
+    return sum(digraph.adj_mat[cycle[i - 1].id][cycle[i].id].weight * (
+            1.0 + digraph.adj_mat[cycle[i - 1].id][cycle[i].id].alpha)
+               for i in range(len(cycle)))
 
 
 def failure_aware_cycle_weight(cycle, digraph, edge_success_prob):
@@ -45,8 +49,9 @@ def failure_aware_cycle_weight(cycle, digraph, edge_success_prob):
         edge_success_prob: The problem that any given edge will NOT fail
     """
 
-    return sum(digraph.adj_mat[cycle[i-1].id][cycle[i].id].weight
-                    for i in range(len(cycle))) * edge_success_prob**len(cycle)
+    return sum(digraph.adj_mat[cycle[i - 1].id][cycle[i].id].weight
+               for i in range(len(cycle))) * edge_success_prob ** len(cycle)
+
 
 def failure_aware_cycle_weight_weighted(cycle, digraph, edge_success_prob):
     """Calculate a cycle's total weight, with edge failures and no backarc recourse.
@@ -57,8 +62,9 @@ def failure_aware_cycle_weight_weighted(cycle, digraph, edge_success_prob):
         digraph: The digraph in which this cycle appears.
         edge_success_prob: The problem that any given edge will NOT fail
     """
-    return sum(digraph.adj_mat[cycle[i-1].id][cycle[i].id].weight * (1.0 + digraph.adj_mat[cycle[i-1].id][cycle[i].id].alpha)
-                    for i in range(len(cycle))) * edge_success_prob**len(cycle)
+    return sum(digraph.adj_mat[cycle[i - 1].id][cycle[i].id].weight * (
+            1.0 + digraph.adj_mat[cycle[i - 1].id][cycle[i].id].alpha)
+               for i in range(len(cycle))) * edge_success_prob ** len(cycle)
 
 
 def reg_failure_aware_cycle_weight(cycle, digraph, edge_success_prob, theta):
@@ -71,8 +77,8 @@ def reg_failure_aware_cycle_weight(cycle, digraph, edge_success_prob, theta):
         edge_success_prob: The problem that any given edge will NOT fail
     """
 
-    return (sum(digraph.adj_mat[cycle[i-1].id][cycle[i].id].weight
-                    for i in range(len(cycle))) - theta * len(cycle)) * edge_success_prob ** len(cycle)
+    return (sum(digraph.adj_mat[cycle[i - 1].id][cycle[i].id].weight
+                for i in range(len(cycle))) - theta * len(cycle)) * edge_success_prob ** len(cycle)
 
 
 class Vertex:
@@ -86,6 +92,7 @@ class Vertex:
     def __str__(self):
         return ("V{}".format(self.id))
 
+
 class Cycle:
     """A cycle in a directed graph.
 
@@ -94,7 +101,8 @@ class Cycle:
     - list of edges
     - cycle weight
     """
-    def __init__(self,vs):
+
+    def __init__(self, vs):
         self.vs = vs
         self.weight = 0
         self.length = len(vs)
@@ -102,29 +110,28 @@ class Cycle:
         self.edges = []
 
     def to_dict(self):
-        cy_dict = {'vs':[v.id for v in self.vs],
-                   'discount_frac':self.discount_frac,
-                   'weight':self.weight}
+        cy_dict = {'vs': [v.id for v in self.vs],
+                   'discount_frac': self.discount_frac,
+                   'weight': self.weight}
         return cy_dict
 
     def to_dict_dynamic(self):
         '''
         for dynamic experiments, save different info
         '''
-        cy_dict = {'vs':[v.to_dict_dynamic() for v in self.vs],
-                   'weight':self.weight}
+        cy_dict = {'vs': [v.to_dict_dynamic() for v in self.vs],
+                   'weight': self.weight}
         return cy_dict
 
     @classmethod
-    def from_dict(cls, cy_dict,digraph):
+    def from_dict(cls, cy_dict, digraph):
         cy = cls([digraph.vs[vi] for vi in cy_dict['vs']])
         cy.discount_frac = cy_dict['discount_frac']
         cy.weight = cy_dict['weight']
         cy.add_edges(digraph.es)
         return cy
 
-
-    def __cmp__(self,other):
+    def __cmp__(self, other):
         if min(self.vs) < min(other.vs):
             return -1
         elif min(self.vs) > min(other.vs):
@@ -137,7 +144,7 @@ class Cycle:
 
     def display(self):
         vtx_str = " ".join(str(v) for v in self.vs)
-        return "L=%2d; %15s; weight = %f; discount_frac = %f" % (self.length,vtx_str, self.weight, self.discount_frac )
+        return "L=%2d; %15s; weight = %f; discount_frac = %f" % (self.length, vtx_str, self.weight, self.discount_frac)
 
     def contains_edge(self, e):
         if e.src in self.vs:
@@ -148,7 +155,7 @@ class Cycle:
                 return False
         return False
 
-    def add_edges(self,es):
+    def add_edges(self, es):
         # create an unordered list of edges in the cycle
         self.edges = [e for e in es if self.contains_edge(e)]
     #
@@ -167,15 +174,15 @@ class Cycle:
 class Edge:
     """An edge in a directed graph (see the Digraph class)."""
 
-    def __init__(self, id, weight, src, tgt, discount=0,fail=False, discount_frac=0):
+    def __init__(self, id, weight, src, tgt, discount=0, fail=False, discount_frac=0):
         self.id = id
-        self.weight = weight # edge weight
-        self.discount = discount # maximum discount value for the robust case
-        self.discount_frac = discount_frac # amount of discount (between 0,1)
-        self.fail = fail # whether edge failed
-        self.src = src   # source vertex
+        self.weight = weight  # edge weight
+        self.discount = discount  # maximum discount value for the robust case
+        self.discount_frac = discount_frac  # amount of discount (between 0,1)
+        self.fail = fail  # whether edge failed
+        self.src = src  # source vertex
         self.src_id = src.id
-        self.tgt = tgt # target vertex
+        self.tgt = tgt  # target vertex
         self.tgt_id = tgt.id
         self.sensitized = tgt.sensitized
 
@@ -186,19 +193,19 @@ class Edge:
         return (self.tgt_id == other.tgt_id) and (self.src_id == other.src_id)
 
     def to_dict(self):
-        e_dict = {'type':'pair_edge',
-                  'id':self.id,
-                  'weight':self.weight,
-                  'discount':self.discount,
-                  'discount_frac':self.discount_frac,
-                  'src_id':self.src_id,
+        e_dict = {'type': 'pair_edge',
+                  'id': self.id,
+                  'weight': self.weight,
+                  'discount': self.discount,
+                  'discount_frac': self.discount_frac,
+                  'src_id': self.src_id,
                   'tgt_id': self.tgt_id,
                   'sensitized': self.sensitized
                   }
         return e_dict
 
     @classmethod
-    def from_dict(cls, e_dict,digraph):
+    def from_dict(cls, e_dict, digraph):
         # find edge among digraph.es
         # THIS DOESN'T HAVE TO BE A CLASS METHOD FOR Edge
         return digraph.adj_mat[e_dict['src_id']][e_dict['tgt_id']]
@@ -207,13 +214,13 @@ class Edge:
         # e = cls(e_dict['id'], e_dict['weight'], src, tgt, discount=e_dict['discount'], discount_frac=e_dict['discount_frac'])
         # return e
 
-
     def display(self, gamma):
         # if gamma == 0:
         #     return "src=%d, tgt=%d, weight=%f" % (self.src.id, self.tgt.id, self.weight)
         # else:
         return "src=%d, tgt=%d, weight=%f, sens=%s, max_discount=%f, discount_frac=%f" % (
-        self.src.id, self.tgt.id, self.weight, self.sensitized, self.discount, self.discount_frac)
+            self.src.id, self.tgt.id, self.weight, self.sensitized, self.discount, self.discount_frac)
+
 
 class Digraph:
     """A directed graph, in which each edge has a numeric weight.
@@ -225,8 +232,8 @@ class Digraph:
     """
 
     def __init__(self, n,
-                 vs_ids = None,
-                 adj_mat = None):
+                 vs_ids=None,
+                 adj_mat=None):
         """Create a Digraph with n vertices"""
         self.n = n
 
@@ -234,7 +241,7 @@ class Digraph:
         if vs_ids is not None:
             # check length of vs
             if len(vs_ids) != n:
-                raise Warning("length of vs_ids is %d but n is %d" % (len(vs_ids),n))
+                raise Warning("length of vs_ids is %d but n is %d" % (len(vs_ids), n))
             else:
                 self.vs = [Vertex(id) for id in vs_ids]
         else:
@@ -243,12 +250,12 @@ class Digraph:
         # add an existing adj_mat
         if adj_mat is not None:
             # check dimensions
-            if np.array(adj_mat).shape != (n,n):
-                raise Warning("adj_mat is not the correct size for n=%d: %s" % (n,str(np.array(adj_mat).shape)))
+            if np.array(adj_mat).shape != (n, n):
+                raise Warning("adj_mat is not the correct size for n=%d: %s" % (n, str(np.array(adj_mat).shape)))
             # check diag (no self-edges)
             for i in range(n):
                 if adj_mat[i][i] is not None:
-                    raise Warning("adj_mat has a diagonal entry at (%d,d%): %s" % (i,i,str(adj_mat[i][i])))
+                    raise Warning("adj_mat has a diagonal entry at (%d,d%): %s" % (i, i, str(adj_mat[i][i])))
         else:
             self.adj_mat = [[None for x in range(n)] for x in range(n)]
 
@@ -270,7 +277,7 @@ class Digraph:
         source.edges.append(e)
         self.adj_mat[source.id][tgt.id] = e
 
-    def remove_edge(self,e):
+    def remove_edge(self, e):
         self.es.remove(e)
         e.src.edges.remove(e)
         self.adj_mat[e.src.id][e.tgt.id] = None
@@ -286,9 +293,9 @@ class Digraph:
             vertices, with the first vertex _not_ repeated at the end.
         """
 
-        if cycle_file is None: # no cycle file given
+        if cycle_file is None:  # no cycle file given
             cycle_list = [cycle for cycle in self.generate_cycles(max_length)]
-        elif os.path.isfile(cycle_file): # cycle file given and exists
+        elif os.path.isfile(cycle_file):  # cycle file given and exists
             # read cycles
             max_len_file = self.read_cycle_maxlen_from_file(cycle_file)
             if max_len_file < max_length:
@@ -296,17 +303,18 @@ class Digraph:
                 cycle_list = [cycle for cycle in self.generate_cycles(max_length)]
                 self.write_cycles_to_file(cycle_file, max_length, cycle_list)
             else:
-                _, cycle_ind_list = self.read_cycles_from_file(cycle_file,max_length)
+                _, cycle_ind_list = self.read_cycles_from_file(cycle_file, max_length)
                 # get cycles
-                cycle_list =  [[self.vs[ic] for ic in c] for c in cycle_ind_list] # [[self.vs[ic] for ic in c] for c in cycle_ind_list if len(c) <= max_length]
-        else: # cycle file is given and does not exist
+                cycle_list = [[self.vs[ic] for ic in c] for c in
+                              cycle_ind_list]  # [[self.vs[ic] for ic in c] for c in cycle_ind_list if len(c) <= max_length]
+        else:  # cycle file is given and does not exist
             # write cycles
             cycle_list = [cycle for cycle in self.generate_cycles(max_length)]
             self.write_cycles_to_file(cycle_file, max_length, cycle_list)
 
         return cycle_list
 
-    def write_cycles_to_file(self,cycle_file,max_length,cycle_list):
+    def write_cycles_to_file(self, cycle_file, max_length, cycle_list):
         cycle_ind_list = [[v.id for v in c] for c in cycle_list]
         # cycle_data = {'max_length': max_length, 'cycle_ind_list': cycle_ind_list}
         maxlen_data = {'max_length': max_length}
@@ -315,16 +323,16 @@ class Digraph:
             # json.dump(cycle_data, f, indent=4)
             f.write(json.dumps(max_length))
             f.write("\n")
-            for c in cycle_list: # in cycle_ind_list:
+            for c in cycle_list:  # in cycle_ind_list:
                 f.write(json.dumps([v.id for v in c]))
                 f.write("\n")
 
-    def read_cycle_maxlen_from_file(self,cycle_file):
+    def read_cycle_maxlen_from_file(self, cycle_file):
         with open(cycle_file, "rb") as f:
             max_length = json.loads(f.readline())
         return max_length
 
-    def read_cycles_from_file(self,cycle_file, max_len):
+    def read_cycles_from_file(self, cycle_file, max_len):
         '''
         Read cycle index lists from file, line by line.
         Only read cycles that are <= max_len
@@ -341,7 +349,6 @@ class Digraph:
 
         return max_length, cycle_ind_list
 
-
     def generate_cycles(self, max_length):
         """Generate cycles of length up to max_length in the digraph.
 
@@ -356,10 +363,10 @@ class Digraph:
             if self.edge_exists(last_vtx, current_path[0]):
                 yield current_path[:]
             if len(current_path) < max_length:
-                for e in last_vtx.edges: 
+                for e in last_vtx.edges:
                     v = e.tgt
                     if (len(current_path) + shortest_paths_to_low_vtx[v.id] <= max_length
-                                and not vtx_used[v.id]):
+                            and not vtx_used[v.id]):
                         current_path.append(v)
                         vtx_used[v.id] = True
                         for c in cycle(current_path):
@@ -374,36 +381,38 @@ class Digraph:
 
         for v in self.vs:
             shortest_paths_to_low_vtx = self.calculate_shortest_path_lengths(
-                    v, max_length - 1,
-                    lambda u: (w for w in transp_adj_lists[u.id] if w.id > v.id))
+                v, max_length - 1,
+                lambda u: (w for w in transp_adj_lists[u.id] if w.id > v.id))
             vtx_used[v.id] = True
             for c in cycle([v]):
                 yield c
             vtx_used[v.id] = False
-    
+
     def get_shortest_path_from_low_vtx(self, low_vtx, max_path):
         """ Returns an array of path lengths. For each v > low_vtx, if the shortest
             path from low_vtx to v is shorter than max_path, then element v of the array
             will be the length of this shortest path. Otherwise, element v will be
             999999999."""
         return self.calculate_shortest_path_lengths(self.vs[low_vtx], max_path,
-                    adj_list_accessor=lambda v: (e.tgt for e in v.edges if e.tgt.id >= low_vtx))
+                                                    adj_list_accessor=lambda v: (e.tgt for e in v.edges if
+                                                                                 e.tgt.id >= low_vtx))
 
     def get_shortest_path_to_low_vtx(self, low_vtx, max_path):
         """ Returns an array of path lengths. For each v > low_vtx, if the shortest
             path to low_vtx from v is shorter than max_path, then element v of the array
             will be the length of this shortest path. Otherwise, element v will be
             999999999."""
+
         def adj_list_accessor(v):
             for i in range(low_vtx, len(self.vs)):
                 if self.adj_mat[i][v.id]:
                     yield self.vs[i]
-            
+
         return self.calculate_shortest_path_lengths(self.vs[low_vtx], max_path,
-                    adj_list_accessor=adj_list_accessor)
+                                                    adj_list_accessor=adj_list_accessor)
 
     def calculate_shortest_path_lengths(self, from_v, max_dist,
-                adj_list_accessor=lambda v: (e.tgt for e in v.edges)):
+                                        adj_list_accessor=lambda v: (e.tgt for e in v.edges)):
         """Calculate the length of the shortest path from vertex from_v to each
         vertex with a greater or equal index, using paths containing
         only vertices indexed greater than or equal to from_v.
@@ -425,7 +434,7 @@ class Digraph:
 
         while q:
             v = q.popleft()
-            #Note: >= is used instead of == on next line in case max_dist<0
+            # Note: >= is used instead of == on next line in case max_dist<0
             if distances[v.id] >= max_dist:
                 break
             for w in adj_list_accessor(v):
@@ -439,7 +448,7 @@ class Digraph:
         """Returns true if and only if an edge exists from Vertex v1 to Vertex v2."""
 
         return self.adj_mat[v1.id][v2.id] is not None
-                    
+
     def induced_subgraph(self, vertices):
         """Returns the subgraph indiced by a given list of vertices."""
 
@@ -473,7 +482,7 @@ class Digraph:
     def unaugment_weights(self, beta):
         for e in self.es:
             if self.vs[e.tgt.id].sensitized:
-                new_weight = e.weight/(1.0 + beta)
+                new_weight = e.weight / (1.0 + beta)
                 e.weight = new_weight
 
     def get_num_sensitized(self):
@@ -525,7 +534,7 @@ def read_digraph(lines):
 
     vtx_count, edge_count = [int(x) for x in lines[0].split()]
     digraph = Digraph(vtx_count)
-    for line in lines[1:edge_count+1]:
+    for line in lines[1:edge_count + 1]:
         tokens = [x for x in line.split()]
         src_id = int(tokens[0])
         tgt_id = int(tokens[1])
@@ -538,11 +547,10 @@ def read_digraph(lines):
         if digraph.edge_exists(digraph.vs[src_id], digraph.vs[tgt_id]):
             raise KidneyReadException("Duplicate edge from {} to {}".format(src_id, tgt_id))
         weight = float(tokens[2])
-            
+
         digraph.add_edge(weight, digraph.vs[src_id], digraph.vs[tgt_id])
 
-    if lines[edge_count+1].split()[0] != "-1" or len(lines) < edge_count+2:
+    if lines[edge_count + 1].split()[0] != "-1" or len(lines) < edge_count + 2:
         raise KidneyReadException("Incorrect edge count")
 
     return digraph
-
