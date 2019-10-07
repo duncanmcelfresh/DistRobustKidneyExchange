@@ -198,19 +198,18 @@ def realize_edge_weights(digraph, ndd_list, rs, noise_scale=0.0):
     """
 
     # randomly assign edges to receive positive or negative weight noise
-    noise_magnitude = 10.0
     for e in digraph.es:
         if rs.rand() < 0.5:
-            noise = noise_magnitude
+            noise = noise_scale
         else:
-            noise = - noise_magnitude
+            noise = - noise_scale
         e.weight = e.draw_edge_weight(rs) + noise
     for n in ndd_list:
         for e in n.edges:
             if rs.rand() < 0.5:
-                noise = noise_magnitude
+                noise = noise_scale
             else:
-                noise = - noise_magnitude
+                noise = - noise_scale
             e.weight = e.draw_edge_weight(rs) + noise
 
     # this is old...
