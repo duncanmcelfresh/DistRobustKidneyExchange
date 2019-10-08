@@ -13,12 +13,12 @@ plt.rcParams["font.family"] = "Times New Roman"
 def lower_pct_trimmed_mean(arr):
     """calculate the the mean of the array, including elements up to the p^th percentile. that is: the mean of the
     lowest (100 * p)% of the array."""
-    p = 0.3
+    p = 0.4
     return np.mean(sorted(arr)[:int(round(len(arr) * p, 0))])
 
 
 # dro results
-output_file = '/Users/duncan/research/DistRobustKidneyExchange_output/dro/robust_kex_experiment_20191006_081745.csv'
+output_file = '/Users/duncan/research/DistRobustKidneyExchange_output/dro/robust_kex_experiment_20191007_182043.csv'
 
 # results
 df = pd.read_csv(output_file, skiprows=1)
@@ -30,14 +30,14 @@ df.columns = [str.strip(c) for c in df.columns]
 df['method'] = df['method'].str.replace(" ", "")
 
 # for sanity's sake, take only look at one of the noise scale values
-noise_scale = 0.9
+noise_scale = 10.0
 df = df.loc[df['noise_scale'].isin([noise_scale])]
 
 # take only one gamma value saa & dro
-plot_gamma = 100.0
+plot_gamma = 10.0
 
 # take only one alpha value
-plot_alpha = 0.3
+plot_alpha = 0.4
 
 # optional: take only one trial
 # trial_num = 2
@@ -112,7 +112,7 @@ font = font_manager.FontProperties(family='Courier New')
 remove_zeros = False
 
 # create 3 subplots
-f, (ax1, ax2, ax3) = plt.subplots(1, 3, sharey=True, figsize=(8, 4))
+f, (ax1, ax2, ax3) = plt.subplots(1, 3, sharey=True, figsize=(8, 3))
 
 # only use one gamma value
 df_clean['saa_gamma'].unique()
@@ -159,12 +159,18 @@ ax2.set_xlabel("$\\gamma$")
 
 
 # --- theta - dro ---
+
+# plot only these theta values
+plot_theta = [0.001, 0.1, 10.0]
+
 if remove_zeros:
     df_dro = df_clean[
-        (df_clean['method_base'] == 'dro') & (df_clean[plot_field] != 0.0)]
+        (df_clean['method_base'] == 'dro') & (df_clean[plot_field] != 0.0) & df_clean['dro_theta'].isin(plot_theta)]
+    # (df_clean['method_base'] == 'dro') & (df_clean[plot_field] != 0.0)]
     # (df_clean['method_base'] == 'dro') & (df_clean[plot_field] != 0.0) & (df_clean['dro_gamma'] == plot_gamma)]
 else:
-    df_dro = df_clean[(df_clean['method_base'] == 'dro')]
+    df_dro = df_clean[(df_clean['method_base'] == 'dro') & df_clean['dro_theta'].isin(plot_theta)]
+    # df_dro = df_clean[(df_clean['method_base'] == 'dro')]
     # df_dro = df_clean[(df_clean['method_base'] == 'dro') & (df_clean['dro_gamma'] == plot_gamma)]
 
 ax_dro = sns.boxplot(x='dro_theta', y=plot_field, data=df_dro, ax=ax3)
@@ -182,7 +188,7 @@ ax3.set_ylabel("")
 ax3.set_xlabel("$\\theta$ ($\\gamma=%d$)" % plot_gamma)
 ax3.xaxis.set_tick_params(rotation=30)
 
-plt.suptitle("noise level = %3.1f, $\\alpha=%3.1f$" % (noise_scale, plot_alpha))
+# plt.suptitle("$\\alpha=%3.1f$" %  plot_alpha)
 plt.tight_layout()
 
 # plt.savefig("/Users/duncan/Downloads/dro_results.pdf")
