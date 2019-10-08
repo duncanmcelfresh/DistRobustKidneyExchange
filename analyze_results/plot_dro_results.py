@@ -8,7 +8,11 @@ import matplotlib.pyplot as plt
 import matplotlib.font_manager as font_manager
 
 plt.rcParams["font.family"] = "Times New Roman"
+plt.rcParams['mathtext.fontset'] = 'stix'
 
+
+# plt.rc('text', usetex=False)
+# plt.rc('font', family='serif')
 
 def lower_pct_trimmed_mean(arr):
     """calculate the the mean of the array, including elements up to the p^th percentile. that is: the mean of the
@@ -18,7 +22,7 @@ def lower_pct_trimmed_mean(arr):
 
 
 # dro results
-output_file = '/Users/duncan/research/DistRobustKidneyExchange_output/dro/robust_kex_experiment_20191007_182043.csv'
+output_file = '/Users/duncan/research/DistRobustKidneyExchange_output/dro/robust_kex_experiment_20191008_105014.csv'
 
 # results
 df = pd.read_csv(output_file, skiprows=1)
@@ -112,7 +116,7 @@ font = font_manager.FontProperties(family='Courier New')
 remove_zeros = False
 
 # create 3 subplots
-f, (ax1, ax2, ax3) = plt.subplots(1, 3, sharey=True, figsize=(8, 3))
+f, (ax1, ax2, ax3) = plt.subplots(1, 3, sharey=True, figsize=(5.5, 3))
 
 # only use one gamma value
 df_clean['saa_gamma'].unique()
@@ -127,9 +131,9 @@ else:
 ax_ro = sns.boxplot(x='ro_gamma', y=plot_field, data=df_ro, ax=ax1)  # , label="_nolegend_")
 # ax_ro = sns.catplot(kind='box', x='ro_gamma', y=plot_field, row='noise_scale', data=df_ro, ax=ax1)  # , label="_nolegend_")
 
-ax1.set_title("RO")
-ax1.set_ylabel("$\\%NR$")
-ax1.set_xlabel("$\\Gamma$")
+ax1.set_title("RO", fontname='Courier New')
+ax1.set_ylabel("%NR")
+ax1.set_xlabel(r"$\Gamma$")
 baseline = ax1.plot([-100, 100], [0.0, 0.0], 'r:', linewidth=2, label="NR (baseline)")
 
 ax1.legend()  # ([baseline], ["NR (baseline)"])  # ,bbox_to_anchor=(1.05, 1), loc=2)
@@ -153,7 +157,7 @@ ax_saa = sns.boxplot(x='saa_gamma', y=plot_field, data=df_saa, ax=ax2)
 
 # ax2.plot(gamma_vals, mean_vals, 'g', linewidth=2)
 ax2.plot([-100, 100], [0.0, 0.0], 'r:', linewidth=2)
-ax2.set_title("CVar")
+ax2.set_title("SAA", fontname='Courier New')
 ax2.set_ylabel("")
 ax2.set_xlabel("$\\gamma$")
 
@@ -161,7 +165,8 @@ ax2.set_xlabel("$\\gamma$")
 # --- theta - dro ---
 
 # plot only these theta values
-plot_theta = [0.001, 0.1, 10.0]
+plot_theta = [0.001, 0.1, 1.0, 10.0]
+# plot_theta = [0.0001, 0.001, 0.1, 1.0, 10.0]
 
 if remove_zeros:
     df_dro = df_clean[
@@ -181,9 +186,9 @@ mean_vals = []
 for gamma in gamma_vals:
     mean_vals.append(df_dro[df_dro['dro_theta'] == gamma][plot_field].mean())
 
-ax3.plot(gamma_vals, mean_vals, 'g', linewidth=2)
+# ax3.plot(gamma_vals, mean_vals, 'g', linewidth=2)
 ax3.plot([-100, 100], [0.0, 0.0], 'r:', linewidth=2)
-ax3.set_title("DRO")
+ax3.set_title("DRO", fontname='Courier New')
 ax3.set_ylabel("")
 ax3.set_xlabel("$\\theta$ ($\\gamma=%d$)" % plot_gamma)
 ax3.xaxis.set_tick_params(rotation=30)
@@ -191,7 +196,7 @@ ax3.xaxis.set_tick_params(rotation=30)
 # plt.suptitle("$\\alpha=%3.1f$" %  plot_alpha)
 plt.tight_layout()
 
-# plt.savefig("/Users/duncan/Downloads/dro_results.pdf")
+plt.savefig("/Users/duncan/Downloads/dro_results_new.pdf")
 
 
 # # --- plot worst-case gamma-pct mean for each graph ---

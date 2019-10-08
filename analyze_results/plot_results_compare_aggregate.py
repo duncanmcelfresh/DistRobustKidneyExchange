@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import matplotlib.font_manager as font_manager
 
 plt.rcParams["font.family"] = "Times New Roman"
-plt.rcParams['text.usetex'] = True
+plt.rcParams['mathtext.fontset'] = 'stix'
 
 def lower_20pct_trimmed_mean(arr):
     """calculate the the mean of the array, including elements up to the p^th percentile. that is: the mean of the
@@ -81,6 +81,8 @@ plot_field = '20pct_pct_diff'
 # font = font_manager.FontProperties(family='Courier New')
 csfont = {'fontname': "Times New Roman"}
 
+font = font_manager.FontProperties(family='Courier New')
+
 remove_zeros = False
 
 # create two subplots
@@ -94,9 +96,9 @@ else:
 
 ax_ro = sns.boxplot(x='ro_gamma', y=plot_field, data=df_ro, ax=ax1)  # , label="_nolegend_")
 
-ax1.set_title("RO")
-ax1.set_ylabel("$\\%NR$")  # , **csfont)
-ax1.set_xlabel("$\\Gamma$")  # , **csfont)
+ax1.set_title("RO", fontname='Courier New')
+ax1.set_ylabel("%NR")  # , **csfont)
+ax1.set_xlabel(r"$\Gamma$")  # , **csfont)
 baseline = ax1.plot([-100, 100], [0.0, 0.0], 'r:', linewidth=2, label="NR (baseline)")
 
 ax1.legend()  # ([baseline], ["NR (baseline)"])  # ,bbox_to_anchor=(1.05, 1), loc=2)
@@ -125,10 +127,9 @@ for gamma in gamma_vals:
 
 ax2.plot(gamma_vals, mean_vals, 'g', linewidth=2)
 ax2.plot([-100, 100], [0.0, 0.0], 'r:', linewidth=2)
-ax2.set_title("CVar")
+ax2.set_title("SAA", fontname='Courier New')
 ax2.set_ylabel("")
-ax2.set_xlabel("$\\gamma$")  #, **csfont)
+ax2.set_xlabel(r"$\gamma$")  # , **csfont)
 
 plt.tight_layout()
-plt.savefig("/Users/duncan/Downloads/cvar_fig.pdf")
-# plt.savefig("/Users/duncan/Downloads/unos_results.pdf")
+plt.savefig("/Users/duncan/Downloads/cvar_results_new.pdf")
