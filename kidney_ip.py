@@ -17,12 +17,9 @@ from gurobipy import *
 import numpy as np
 import sys
 import random
-from guppy import hpy
 import json
 
 from kidney_digraph import reg_failure_aware_cycle_weight
-
-h = hpy()
 
 EPS = 1e-12
 EPS_mid = 0.01
@@ -92,7 +89,7 @@ class OptConfig(object):
         self.name = name
 
         # are chains used?
-        self.use_chains = (self.max_chain > 0) and (self.chain_restriction < len(self.ndds))
+        self.use_chains = True
 
 
 class OptSolution(object):

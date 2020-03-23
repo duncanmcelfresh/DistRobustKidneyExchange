@@ -170,7 +170,7 @@ def read_cmu_format(details_filename, maxcard_filename,
         src = row['src_id']
         tgt_id = vtx_index[ row['tgt_id'] ]
         weight = row['weight']
-        if use_ndds and ndd_index.has_key(src): # this is an ndd edge
+        if use_ndds and src in ndd_index:  # this is an ndd edge
             src_id = ndd_index[src]
             ndd_list[src_id].add_edge(NddEdge(digraph.vs[tgt_id], weight, src_id=ndd_list[src_id].id))
         else: # this edge is a pair edge
