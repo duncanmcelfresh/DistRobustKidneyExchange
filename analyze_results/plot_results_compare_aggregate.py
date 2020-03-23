@@ -1,4 +1,5 @@
 # plot results
+import os
 
 import pandas as pd
 import numpy as np
@@ -10,6 +11,7 @@ import matplotlib.font_manager as font_manager
 plt.rcParams["font.family"] = "Times New Roman"
 plt.rcParams['mathtext.fontset'] = 'stix'
 
+
 def lower_20pct_trimmed_mean(arr):
     """calculate the the mean of the array, including elements up to the p^th percentile. that is: the mean of the
     lowest (100 * p)% of the array."""
@@ -18,7 +20,9 @@ def lower_20pct_trimmed_mean(arr):
 
 
 # good!!!!
-output_file = '/Users/duncan/research/DistRobustKidneyExchange_output/gold/robust_kex_experiment_20190905_175226.csv'
+output_file = '/Users/duncan/research/old_projects/DistRobustKidneyExchange/DistRobustKidneyExchange_output/gold/robust_kex_experiment_20190905_175226.csv'
+
+fig_dir = '/Users/duncan/research/old_projects/DistRobustKidneyExchange/DistRobustKidneyExchange_output/fig'
 
 # results
 df = pd.read_csv(output_file, skiprows=1)
@@ -97,7 +101,7 @@ else:
 ax_ro = sns.boxplot(x='ro_gamma', y=plot_field, data=df_ro, ax=ax1)  # , label="_nolegend_")
 
 ax1.set_title("RO", fontname='Courier New')
-ax1.set_ylabel("%NR")  # , **csfont)
+ax1.set_ylabel("FRAC-NR")  # , **csfont)
 ax1.set_xlabel(r"$\Gamma$")  # , **csfont)
 baseline = ax1.plot([-100, 100], [0.0, 0.0], 'r:', linewidth=2, label="NR (baseline)")
 
@@ -132,4 +136,4 @@ ax2.set_ylabel("")
 ax2.set_xlabel(r"$\gamma$")  # , **csfont)
 
 plt.tight_layout()
-plt.savefig("/Users/duncan/Downloads/cvar_results_new.pdf")
+plt.savefig(os.path.join(fig_dir, "cvar_results_new.pdf"))

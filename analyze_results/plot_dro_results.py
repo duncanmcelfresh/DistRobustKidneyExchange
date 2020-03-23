@@ -1,4 +1,5 @@
 # plot results from DRO
+import os
 
 import pandas as pd
 import numpy as np
@@ -22,7 +23,9 @@ def lower_pct_trimmed_mean(arr):
 
 
 # dro results
-output_file = '/Users/duncan/research/DistRobustKidneyExchange_output/dro/robust_kex_experiment_20191008_105014.csv'
+output_file = '/Users/duncan/research/old_projects/DistRobustKidneyExchange/DistRobustKidneyExchange_output/dro/robust_kex_experiment_20191008_144745.csv'
+
+fig_dir = '/Users/duncan/research/old_projects/DistRobustKidneyExchange/DistRobustKidneyExchange_output/fig'
 
 # results
 df = pd.read_csv(output_file, skiprows=1)
@@ -34,8 +37,8 @@ df.columns = [str.strip(c) for c in df.columns]
 df['method'] = df['method'].str.replace(" ", "")
 
 # for sanity's sake, take only look at one of the noise scale values
-noise_scale = 10.0
-df = df.loc[df['noise_scale'].isin([noise_scale])]
+# noise_scale = 10.0
+# df = df.loc[df['noise_scale'].isin([noise_scale])]
 
 # take only one gamma value saa & dro
 plot_gamma = 10.0
@@ -113,7 +116,7 @@ plot_field = 'lowerpct_pct_diff'
 
 font = font_manager.FontProperties(family='Courier New')
 
-remove_zeros = False
+remove_zeros = True
 
 # create 3 subplots
 f, (ax1, ax2, ax3) = plt.subplots(1, 3, sharey=True, figsize=(5.5, 3))
@@ -132,7 +135,7 @@ ax_ro = sns.boxplot(x='ro_gamma', y=plot_field, data=df_ro, ax=ax1)  # , label="
 # ax_ro = sns.catplot(kind='box', x='ro_gamma', y=plot_field, row='noise_scale', data=df_ro, ax=ax1)  # , label="_nolegend_")
 
 ax1.set_title("RO", fontname='Courier New')
-ax1.set_ylabel("%NR")
+ax1.set_ylabel("FRAC-NR")
 ax1.set_xlabel(r"$\Gamma$")
 baseline = ax1.plot([-100, 100], [0.0, 0.0], 'r:', linewidth=2, label="NR (baseline)")
 
@@ -161,12 +164,11 @@ ax2.set_title("SAA", fontname='Courier New')
 ax2.set_ylabel("")
 ax2.set_xlabel("$\\gamma$")
 
-
 # --- theta - dro ---
 
 # plot only these theta values
-plot_theta = [0.001, 0.1, 1.0, 10.0]
-# plot_theta = [0.0001, 0.001, 0.1, 1.0, 10.0]
+plot_theta = [0.1, 1.0, 2, 5, 10.0, 20.0]
+# plot_theta = df_clean['dro_theta'].unique()
 
 if remove_zeros:
     df_dro = df_clean[
@@ -196,82 +198,4 @@ ax3.xaxis.set_tick_params(rotation=30)
 # plt.suptitle("$\\alpha=%3.1f$" %  plot_alpha)
 plt.tight_layout()
 
-plt.savefig("/Users/duncan/Downloads/dro_results_new.pdf")
-
-
-# # --- plot worst-case gamma-pct mean for each graph ---
-#
-# font = font_manager.FontProperties(family='Courier New')
-#
-# remove_zeros = False
-#
-# # create 3 subplots
-# f, (ax1, ax2, ax3) = plt.subplots(1, 3, sharey=True, figsize=(8, 4))
-#
-# # only use one gamma value
-# df_clean['saa_gamma'].unique()
-# df_clean['dro_gamma'].unique()
-#
-# plot_gamma = 100.0
-#
-# # --- gamma - RO ---
-# if remove_zeros:
-#     df_ro = df_clean[(df_clean['method_base'] == 'ro') & (df_clean[plot_field] != 0.0)]
-# else:
-#     df_ro = df_clean[df_clean['method_base'] == 'ro']
-#
-# ax_ro = sns.boxplot(x='ro_gamma', y=plot_field, data=df_ro, ax=ax1)  # , label="_nolegend_")
-# # ax_ro = sns.catplot(kind='box', x='ro_gamma', y=plot_field, row='noise_scale', data=df_ro, ax=ax1)  # , label="_nolegend_")
-#
-# ax1.set_title("RO")
-# ax1.set_ylabel("$\\%NR$")
-# ax1.set_xlabel("$\\Gamma$")
-# baseline = ax1.plot([-100, 100], [0.0, 0.0], 'r:', linewidth=2, label="NR (baseline)")
-#
-# ax1.legend()  # ([baseline], ["NR (baseline)"])  # ,bbox_to_anchor=(1.05, 1), loc=2)
-#
-# # --- gamma - SSA ---
-# # ** only plot for the highest gamma : 10
-# if remove_zeros:
-#     df_saa = df_clean[
-#         (df_clean['method_base'] == 'saa') & (df_clean[plot_field] != 0.0) & (df_clean['saa_gamma'] == plot_gamma)]
-# else:
-#     df_saa = df_clean[(df_clean['method_base'] == 'saa') & (df_clean['saa_gamma'] == plot_gamma)]
-#
-# ax_saa = sns.boxplot(x='saa_gamma', y=plot_field, data=df_saa, ax=ax2)
-#
-# # plot a line of the means
-# gamma_vals = sorted(list(df_saa['saa_gamma'].unique()))
-# mean_vals = []
-# for gamma in gamma_vals:
-#     mean_vals.append(df_saa[df_saa['saa_gamma'] == gamma][plot_field].mean())
-#
-# ax2.plot(gamma_vals, mean_vals, 'g', linewidth=2)
-# ax2.plot([-100, 100], [0.0, 0.0], 'r:', linewidth=2)
-# ax2.set_title("CVar")
-# ax2.set_ylabel("")
-# ax2.set_xlabel("$\\gamma$")
-#
-# # --- theta - dro ---
-# if remove_zeros:
-#     df_dro = df_clean[
-#         (df_clean['method_base'] == 'dro') & (df_clean[plot_field] != 0.0) & (df_clean['dro_gamma'] == plot_gamma)]
-# else:
-#     df_dro = df_clean[(df_clean['method_base'] == 'dro') & (df_clean['dro_gamma'] == plot_gamma)]
-#
-# ax_dro = sns.boxplot(x='dro_theta', y=plot_field, data=df_dro, ax=ax3)
-#
-# # plot a line of the means
-# gamma_vals = sorted(list(df_dro['dro_theta'].unique()))
-# mean_vals = []
-# for gamma in gamma_vals:
-#     mean_vals.append(df_dro[df_dro['dro_theta'] == gamma][plot_field].mean())
-#
-# ax3.plot(gamma_vals, mean_vals, 'g', linewidth=2)
-# ax3.plot([-100, 100], [0.0, 0.0], 'r:', linewidth=2)
-# ax3.set_title("DRO")
-# ax3.set_ylabel("")
-# ax3.set_xlabel("$\\theta$ ($\\gamma=10.0$)")
-#
-# plt.suptitle("noise level = %3.1f" % noise_scale)
-# plt.tight_layout()
+plt.savefig(os.path.join(fig_dir, "dro_results_new.pdf"))

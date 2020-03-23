@@ -916,7 +916,7 @@ def optimize_SAA_picef(cfg, num_weight_measurements, gamma, alpha):
                       cardinality_restriction=cfg.cardinality_restriction)
     sol.add_matching_edges(cfg.ndds)
     kidney_utils.check_validity(sol, cfg.digraph, cfg.ndds, cfg.max_cycle, cfg.max_chain)
-    return None, matching_edges
+    return sol, matching_edges
 
 
 #####################################DRO###############################################################
@@ -1080,4 +1080,4 @@ def optimize_DRO_SAA_picef(cfg, num_weight_measurements, gamma, alpha, theta, w_
                       cardinality_restriction=cfg.cardinality_restriction)
     sol.add_matching_edges(cfg.ndds)
     kidney_utils.check_validity(sol, cfg.digraph, cfg.ndds, cfg.max_cycle, cfg.max_chain)
-    return None, matching_edges
+    return sol, matching_edges
