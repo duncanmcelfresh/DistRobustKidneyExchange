@@ -245,6 +245,10 @@ def robust_kex_experiment(args):
                                     edges_prob_low_lkdpi = len(
                                         [e for e in matched_edges if e.type == 1 and e.lkdpi == low_lkdpi])
 
+                                    if sum([
+                                               edges_det_high_lkdpi + edges_det_low_lkdpi + edges_prob_high_lkdpi + edges_prob_low_lkdpi]) != total_edges:
+                                        pass
+                                        raise Exception
                                 f.write(
                                     (",".join(len(output_columns) * ["%s"]) + "\n")
                                     % (

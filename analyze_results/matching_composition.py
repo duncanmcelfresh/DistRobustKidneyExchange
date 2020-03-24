@@ -16,8 +16,14 @@ plt.rcParams['mathtext.fontset'] = 'stix'
 # plt.rc('font', family='serif')
 
 
+# ---
+
 # rebuttal results
-output_file = '/Users/duncan/research/old_projects/DistRobustKidneyExchange/DistRobustKidneyExchange_output/rebuttal_results/robust_kex_experiment_20200323_173633.csv'
+
+# old
+# output_file = '/Users/duncan/research/old_projects/DistRobustKidneyExchange/DistRobustKidneyExchange_output/rebuttal_results/robust_kex_experiment_20200323_173633.csv'
+
+output_file = '/Users/duncan/research/old_projects/DistRobustKidneyExchange/DistRobustKidneyExchange_output/rebuttal_results/robust_kex_experiment_20200324_114345.csv'
 
 fig_dir = '/Users/duncan/research/old_projects/DistRobustKidneyExchange/DistRobustKidneyExchange_output/fig/'
 
@@ -73,23 +79,32 @@ df['uid'] = df[id_columns].apply(tuple, axis=1)
 
 # take only one realization, because the matching composition doesn't change between realizations
 
-df_matching = df.loc[df["realization_num"] == 0].copy()
-
 # get the total number of edges matched in each case
-df_matching["num_edges_matched"] = (
-        2 * df_matching["num_2cycles"]
-        + 3 * df_matching["num_3cycles"]
-        + 1 * df_matching["num_1chains"]
-        + 2 * df_matching["num_2chains"]
-        + 3 * df_matching["num_3chains"]
-        + 4 * df_matching["num_4chains"]
-        + 5 * df_matching["num_5chains"]
+df["num_edges_matched"] = (
+        2 * df["num_2cycles"]
+        + 3 * df["num_3cycles"]
+        + 1 * df["num_1chains"]
+        + 2 * df["num_2chains"]
+        + 3 * df["num_3chains"]
+        + 4 * df["num_4chains"]
+        + 5 * df["num_5chains"]
 )
 
+df["edges_prob"] = df["edges_prob_high_lkdpi"] + df["edges_prob_low_lkdpi"]
+df["edges_det"] = df["edges_det_high_lkdpi"] + df["edges_det_low_lkdpi"]
+
 # calc the %-diff in number of edges, relative to nonrobust
-df_baseline = df_matching.loc[
-    df_matching['method_base'] == 'nonrobust_samplemean', ["uid", "num_edges_matched", "num_2cycles", "num_3cycles",
-                                                           "num_1chains", "num_2chains", "num_3chains", "num_4chains"]]
+df_baseline = df.loc[
+    df['method_base'] == 'nonrobust_samplemean', ["uid", "num_edges_matched", "num_2cycles", "num_3cycles",
+                                                  "num_1chains", "num_2chains", "num_3chains", "num_4chains",
+                                                  "expected_matching_weight",
+                                                  "edges_prob",
+                                                  "edges_det",
+                                                  "edges_det_high_lkdpi",
+                                                  "edges_det_low_lkdpi",
+                                                  "edges_prob_high_lkdpi",
+                                                  "edges_prob_low_lkdpi",
+                                                  "total_edges"]]
 
 df_baseline.rename(columns={
     'num_2cycles': 'baseline_num_2cycles',
@@ -99,8 +114,16 @@ df_baseline.rename(columns={
     'num_3chains': 'baseline_num_3chains',
     'num_4chains': 'baseline_num_4chains',
     'num_edges_matched': 'baseline_num_edges_matched',
+    'expected_matching_weight': 'baseline_expected_matching_weight',
+    'edges_prob': 'baseline_edges_prob',
+    'edges_det': 'baseline_edges_det',
+    'edges_det_high_lkdpi': 'baseline_edges_det_high_lkdpi',
+    'edges_det_low_lkdpi': 'baseline_edges_det_low_lkdpi',
+    'edges_prob_high_lkdpi': 'baseline_edges_prob_high_lkdpi',
+    'edges_prob_low_lkdpi': 'baseline_edges_prob_low_lkdpi',
+    'total_edges': 'baseline_total_edges',
 }, inplace=True)
-df_clean = pd.merge(df_matching, df_baseline, on='uid')
+df_clean = pd.merge(df, df_baseline, on='uid')
 
 df_clean["pct_diff_num_edges_matched"] = (df_clean["num_edges_matched"] - df_clean["baseline_num_edges_matched"]) / \
                                          df_clean["baseline_num_edges_matched"]
@@ -108,8 +131,34 @@ df_clean["abs_diff_num_2cycles"] = df_clean["num_2cycles"] - df_clean["baseline_
 df_clean["abs_diff_num_3cycles"] = df_clean["num_3cycles"] - df_clean["baseline_num_3cycles"]
 df_clean["abs_diff_num_1chains"] = df_clean["num_1chains"] - df_clean["baseline_num_1chains"]
 df_clean["abs_diff_num_2chains"] = df_clean["num_2chains"] - df_clean["baseline_num_2chains"]
-df_clean["abs_diff_num_3chains"] = df_clean["num_3chains"] - df_clean["baseline_num_3chains"]
-df_clean["abs_diff_num_4chains"] = df_clean["num_4chains"] - df_clean["baseline_num_4chains"]
+
+df_clean["pct_diff_expected_matching_weight"] = (df_clean["expected_matching_weight"] - df_clean[
+    "baseline_expected_matching_weight"]) / df_clean["baseline_expected_matching_weight"]
+df_clean["pct_diff_total_edges"] = (df_clean["total_edges"] - df_clean["baseline_total_edges"]) / df_clean[
+    "baseline_total_edges"]
+df_clean["abs_diff_edges_det_high_lkdpi"] = df_clean["edges_det_high_lkdpi"] - df_clean["baseline_edges_det_high_lkdpi"]
+df_clean["abs_diff_edges_prob_high_lkdpi"] = df_clean["edges_prob_high_lkdpi"] - df_clean[
+    "baseline_edges_prob_high_lkdpi"]
+df_clean["abs_diff_edges_det_low_lkdpi"] = df_clean["edges_det_low_lkdpi"] - df_clean["baseline_edges_det_low_lkdpi"]
+df_clean["abs_diff_edges_prob_low_lkdpi"] = df_clean["edges_prob_low_lkdpi"] - df_clean["baseline_edges_prob_low_lkdpi"]
+df_clean["abs_diff_edges_prob"] = df_clean["edges_prob"] - df_clean["baseline_edges_prob"]
+df_clean["abs_diff_edges_det"] = df_clean["edges_det"] - df_clean["baseline_edges_det"]
+
+# get counts of cycles and chains by length - and number of edges
+df_clean[["abs_diff_num_1chains", "num_1chains", "abs_diff_num_2chains", "num_2chains", "abs_diff_num_3chains",
+          "num_3chains", "abs_diff_num_4chains", "num_4chains"]].groupby(df_clean["method"]).sum()
+df_clean[["abs_diff_num_2cycles", "num_2cycles", "abs_diff_num_3cycles", "num_3cycles"]].groupby(
+    df_clean["method"]).sum()
+df_clean[["pct_diff_num_edges_matched", "num_edges_matched"]].groupby(df_clean["method"]).mean()
+
+# get num edges, by type, etc.
+df_clean[["pct_diff_expected_matching_weight", "expected_matching_weight"]].groupby(df_clean["method"]).mean()
+df_clean[["pct_diff_total_edges", "total_edges"]].groupby(df_clean["method"]).mean()
+df_clean[["abs_diff_edges_det_high_lkdpi", "edges_det_high_lkdpi"]].groupby(df_clean["method"]).mean()
+df_clean[["abs_diff_edges_det_low_lkdpi", "edges_det_low_lkdpi"]].groupby(df_clean["method"]).mean()
+df_clean[["abs_diff_edges_prob_high_lkdpi", "edges_prob_high_lkdpi"]].groupby(df_clean["method"]).mean()
+df_clean[["abs_diff_edges_prob_low_lkdpi", "edges_prob_low_lkdpi"]].groupby(df_clean["method"]).mean()
+df_clean[["abs_diff_edges_prob", "edges_prob_low_lkdpi"]].groupby(df_clean["method"])
 
 # --- below: old ---
 
