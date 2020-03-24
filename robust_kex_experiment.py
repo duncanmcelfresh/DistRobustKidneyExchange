@@ -45,6 +45,12 @@ def robust_kex_experiment(args):
         "num_3chains",
         "num_4chains",
         "num_5chains",
+        "expected_matching_weight",
+        "edges_det_high_lkdpi",
+        "edges_det_low_lkdpi",
+        "edges_prob_high_lkdpi",
+        "edges_prob_low_lkdpi",
+        "total_edges",
     ]
 
     # output file header, and write experiment parameters to the first line
@@ -218,6 +224,27 @@ def robust_kex_experiment(args):
                                 for chain in sol.chains:
                                     num_chains[chain.length] += 1
 
+                                mean_wt = 0
+                                edges_det_high_lkdpi = 0
+                                edges_det_low_lkdpi = 0
+                                edges_prob_high_lkdpi = 0
+                                edges_prob_low_lkdpi = 0
+                                total_edges = len(matched_edges)
+                                if args.dist_type == "lkdpi":
+                                    # high and low lkdpi
+                                    low_lkdpi = 14.93
+                                    high_lkdpi = 59.37
+
+                                    mean_wt = sum([e.true_mean_weight for e in matched_edges])
+                                    edges_det_high_lkdpi = len(
+                                        [e for e in matched_edges if e.type == 0 and e.lkdpi == high_lkdpi])
+                                    edges_det_low_lkdpi = len(
+                                        [e for e in matched_edges if e.type == 0 and e.lkdpi == low_lkdpi])
+                                    edges_prob_high_lkdpi = len(
+                                        [e for e in matched_edges if e.type == 1 and e.lkdpi == high_lkdpi])
+                                    edges_prob_low_lkdpi = len(
+                                        [e for e in matched_edges if e.type == 1 and e.lkdpi == low_lkdpi])
+
                                 f.write(
                                     (",".join(len(output_columns) * ["%s"]) + "\n")
                                     % (
@@ -239,6 +266,12 @@ def robust_kex_experiment(args):
                                         "%d" % num_chains[3],
                                         "%d" % num_chains[4],
                                         "%d" % num_chains[5],
+                                        "%.3e" % mean_wt,
+                                        "%d" % edges_det_high_lkdpi,
+                                        "%d" % edges_det_low_lkdpi,
+                                        "%d" % edges_prob_high_lkdpi,
+                                        "%d" % edges_prob_low_lkdpi,
+                                        "%d" % total_edges,
                                     )
                                 )
 
@@ -499,19 +532,20 @@ def main():
 
     if args.DEBUG:
         # fixed set of parameters, for debugging:
-        arg_str = "--num-weight-measurements 1"
+        arg_str = "--num-weight-measurements 20"
         arg_str += " --use-samplemean"
-        arg_str += " --num-trials 10"
+        arg_str += " --seed 0"
+        arg_str += " --num-trials 5"
         arg_str += " --use-dro-saa"
-        arg_str += " --noise-scale-list 0.0"  # 0.0 0.1 0.5 0.7'
+        arg_str += " --noise-scale-list 20.0"  # 0.0 0.1 0.5 0.7'
         arg_str += " --use-saa"
         arg_str += " --use-ro"
         arg_str += " --dist-type lkdpi"
         arg_str += " --alpha-list 0.5"
         arg_str += " --num-weight-realizations 1"
-        arg_str += " --saa-alpha-list 0.5"
-        arg_str += " --dro-theta-list 0.01"  # 0.01 0.1 1.0 10 100 1000 10000'
-        arg_str += " --saa-gamma-list 10"
+        arg_str += " --saa-alpha-list 0.4"
+        arg_str += " --dro-theta-list 0.1 1.0 10.0 100.0"  # 0.01 0.1 1.0 10 100 1000 10000'
+        arg_str += " --saa-gamma-list 10.0"
         arg_str += " --gamma-list 5"
         arg_str += " --output-dir /Users/duncan/research/old_projects/DistRobustKidneyExchange/DistRobustKidneyExchange_output/debug"
         arg_str += " --graph-type cmu"

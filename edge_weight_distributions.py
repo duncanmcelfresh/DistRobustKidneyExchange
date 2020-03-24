@@ -74,6 +74,7 @@ def initialize_edge_weights(digraph, ndd_list, num_weight_measurements, alpha, r
 
             # inherit these properties from the source (donor) node
             e.type = e.src.type
+            e.lkdpi = e.src.lkdpi
             e.true_mean_weight = e.src.true_mean_weight
             e.draw_edge_weight = e.src.draw_edge_weight
             e.weight_list = e.src.weight_list
@@ -83,6 +84,7 @@ def initialize_edge_weights(digraph, ndd_list, num_weight_measurements, alpha, r
             for e in n.edges:
                 # inherit these properties from the source (donor) node
                 e.type = n.type
+                e.type = n.lkdpi
                 e.true_mean_weight = n.true_mean_weight
                 e.draw_edge_weight = n.draw_edge_weight
                 e.weight_list = n.weight_list
