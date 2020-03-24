@@ -235,20 +235,50 @@ def robust_kex_experiment(args):
                                     low_lkdpi = 14.93
                                     high_lkdpi = 59.37
 
-                                    mean_wt = sum([e.true_mean_weight for e in matched_edges])
+                                    mean_wt = sum(
+                                        [e.true_mean_weight for e in matched_edges]
+                                    )
                                     edges_det_high_lkdpi = len(
-                                        [e for e in matched_edges if e.type == 0 and e.lkdpi == high_lkdpi])
+                                        [
+                                            e
+                                            for e in matched_edges
+                                            if e.type == 0 and e.lkdpi == high_lkdpi
+                                        ]
+                                    )
                                     edges_det_low_lkdpi = len(
-                                        [e for e in matched_edges if e.type == 0 and e.lkdpi == low_lkdpi])
+                                        [
+                                            e
+                                            for e in matched_edges
+                                            if e.type == 0 and e.lkdpi == low_lkdpi
+                                        ]
+                                    )
                                     edges_prob_high_lkdpi = len(
-                                        [e for e in matched_edges if e.type == 1 and e.lkdpi == high_lkdpi])
+                                        [
+                                            e
+                                            for e in matched_edges
+                                            if e.type == 1 and e.lkdpi == high_lkdpi
+                                        ]
+                                    )
                                     edges_prob_low_lkdpi = len(
-                                        [e for e in matched_edges if e.type == 1 and e.lkdpi == low_lkdpi])
+                                        [
+                                            e
+                                            for e in matched_edges
+                                            if e.type == 1 and e.lkdpi == low_lkdpi
+                                        ]
+                                    )
 
-                                    if sum([
-                                               edges_det_high_lkdpi + edges_det_low_lkdpi + edges_prob_high_lkdpi + edges_prob_low_lkdpi]) != total_edges:
-                                        pass
-                                        raise Exception
+                                    assert (
+                                            sum(
+                                                [
+                                                    edges_det_high_lkdpi
+                                                    + edges_det_low_lkdpi
+                                                    + edges_prob_high_lkdpi
+                                                    + edges_prob_low_lkdpi
+                                                ]
+                                            )
+                                            == total_edges
+                                    )
+
                                 f.write(
                                     (",".join(len(output_columns) * ["%s"]) + "\n")
                                     % (
@@ -548,7 +578,9 @@ def main():
         arg_str += " --alpha-list 0.5"
         arg_str += " --num-weight-realizations 1"
         arg_str += " --saa-alpha-list 0.4"
-        arg_str += " --dro-theta-list 0.1 1.0 10.0 100.0"  # 0.01 0.1 1.0 10 100 1000 10000'
+        arg_str += (
+            " --dro-theta-list 0.1 1.0 10.0 100.0"  # 0.01 0.1 1.0 10 100 1000 10000'
+        )
         arg_str += " --saa-gamma-list 10.0"
         arg_str += " --gamma-list 5"
         arg_str += " --output-dir /Users/duncan/research/old_projects/DistRobustKidneyExchange/DistRobustKidneyExchange_output/debug"
